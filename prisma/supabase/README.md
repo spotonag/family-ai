@@ -17,6 +17,23 @@ config problem. Generating the migration SQL offline sidesteps needing a
 live connection at all; applying it needs a real one, from somewhere that
 has actual network access — your own machine, CI, or a deployment.
 
+## Important: the pooler connection string needs `?pgbouncer=true`
+
+Supabase's connection pooler (the `*.pooler.supabase.com:6543` host) runs in
+PgBouncer "transaction" mode, which doesn't support prepared statements the
+way Prisma uses them by default — every query fails with something like
+`PostgresError { code: "42P05", message: "prepared statement \"s0\" already
+exists" }`. Append `?pgbouncer=true&connection_limit=1` to the end of the
+connection string to fix it:
+
+```
+postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1
+```
+
+This applies anywhere the pooler URL is used — local `.env`, Render's
+`DATABASE_URL` environment variable, CI, all of it. The direct-connection
+host (port 5432, IPv6-only) doesn't need this, since it isn't pooled.
+
 ## Applying it
 
 **Option A — Supabase SQL Editor (easiest, no local setup):**
