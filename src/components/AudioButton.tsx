@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { getPreferredVoice } from "@/lib/voice";
 
 const canSpeak = typeof window !== "undefined" && "speechSynthesis" in window;
 
@@ -25,7 +26,7 @@ export function AudioButton({
     };
   }, []);
 
-  function press() {
+  async function press() {
     if (state === "playing") return;
 
     if (!canSpeak) {
@@ -38,7 +39,13 @@ export function AudioButton({
 
     window.speechSynthesis.cancel(); // clear anything queued/stuck
     const utterance = new SpeechSynthesisUtterance(transcript);
-    utterance.rate = 0.98;
+    const voice = await getPreferredVoice();
+    if (voice) {
+      utterance.voice = voice;
+      utterance.lang = voice.lang;
+    }
+    utterance.rate = 0.96;
+    utterance.pitch = 1;
     utterance.onstart = () => setState("playing");
     utterance.onend = () => setState("played");
     utterance.onerror = () => setState("played");
