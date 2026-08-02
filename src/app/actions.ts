@@ -4,11 +4,25 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 import { VIEWER_COOKIE } from "@/lib/family";
+import { requireAdmin, verifyPin } from "@/lib/auth";
 
-export async function setViewer(profileId: string) {
+export async function switchViewer(profileId: string, pin?: string): Promise<{ ok: boolean; error?: string }> {
+  const profile = await db.profile.findUnique({ where: { id: profileId } });
+  if (!profile) return { ok: false, error: "Unknown profile." };
+
+  if (profile.role === "parent") {
+    if (!profile.pinHash || !profile.pinSalt) {
+      return { ok: false, error: "This profile has no PIN set." };
+    }
+    if (!pin || !verifyPin(pin, profile.pinHash, profile.pinSalt)) {
+      return { ok: false, error: "Incorrect PIN." };
+    }
+  }
+
   const store = await cookies();
   store.set(VIEWER_COOKIE, profileId, { path: "/" });
   revalidatePath("/", "layout");
+  return { ok: true };
 }
 
 export async function toggleJob(jobId: string) {
@@ -61,6 +75,9 @@ export async function addShoppingItem(formData: FormData) {
 }
 
 export async function addJob(formData: FormData) {
+  const actingProfileId = String(formData.get("actingProfileId") ?? "");
+  await requireAdmin(actingProfileId); // Parent/Admin only — Functional Spec Section 2
+
   const title = String(formData.get("title") ?? "").trim();
   const familyId = String(formData.get("familyId") ?? "");
   const assignedToId = String(formData.get("assignedToId") ?? "") || null;
@@ -73,6 +90,22 @@ export async function addJob(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/jobs");
+}
+
+export async function addBonusPoints(formData: FormData) {
+  const actingProfileId = String(formData.get("actingProfileId") ?? "");
+  await requireAdmin(actingProfileId); // Parent/Admin only — Functional Spec Section 2
+
+  const targetProfileId = String(formData.get("targetProfileId") ?? "");
+  const amount = Number(formData.get("amount") ?? 0);
+  const note = String(formData.get("note") ?? "").trim() || "Bonus";
+  if (!targetProfileId || !amount) return;
+
+  await db.pointsLedger.create({
+    data: { profileId: targetProfileId, source: "bonus", amount, note },
+  });
+
+  revalidatePath("/");
 }
 
 export async function markPurchased(itemId: string) {

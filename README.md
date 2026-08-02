@@ -13,7 +13,7 @@ and an AI chat, all backed by a real (local) database.
 | Shopping / Jobs / Calendar full screens | Real |
 | AI chat | **Real Claude, with a rule-based fallback.** If `ANTHROPIC_API_KEY` is set, chat runs through actual Claude with tool use — understands natural phrasing, asks clarifying questions, handles multi-part requests. With no key, it automatically falls back to matching the exact example phrases from the Functional Spec's intent map (Section 6) with regex. See "AI chat" below. |
 | Weather | **Real** — live Bureau of Meteorology data for Boort, VIC. See "Weather data" below for important caveats. |
-| Auth / roles | **None yet.** Anyone can switch "viewing as" any family member via the avatar row — there's no login and no enforcement of the Parent/Admin vs. Child permissions from the spec's Section 2. Fine for a single-family local demo, not for a real deployment. |
+| Auth / roles | **Lightweight PIN gate, real enforcement.** Switching "viewing as" into a Parent profile needs that parent's 4-digit PIN (children switch freely, per spec Section 5.1). Admin-only actions (adding a job, giving bonus points) are checked server-side, not just hidden in the UI. See "Auth / roles" below for what this is and isn't. |
 | Voice | Not built yet — this milestone is text/click only. |
 | Push notifications | Not built yet. |
 
@@ -28,7 +28,9 @@ npm run dev
 Open http://localhost:3000. The database already has one seeded family
 (Katherine, Victoria, Anna, Lucy, Juliet) with jobs, a dinner plan, a
 shopping list, and today's quiz question — matching the Home screen mockup.
-Use the avatar row top-right to switch who you're "viewing as."
+Use the avatar row top-right to switch who you're "viewing as." Katherine is
+the only Parent/Admin profile; her PIN is **1234** (printed by `db:seed`
+too) — the rest are Child profiles and switch to instantly, no PIN.
 
 `npm run db:seed` wipes and re-creates all demo data — re-run it any time
 you want a clean slate.
@@ -45,6 +47,7 @@ src/lib/weather.ts          Live BOM weather + cache/fallback
 src/lib/intents.ts          Rule-based NLU (fallback chat mode)
 src/lib/intentExecutor.ts   Executes a resolved Intent against the database — shared by both chat modes
 src/lib/llmChat.ts          Real Claude tool-use loop (active chat mode)
+src/lib/auth.ts             PIN hashing/verification + requireAdmin() permission check
 src/app/page.tsx            Home screen
 src/app/shopping /jobs /calendar /chat   Full screens
 src/app/actions.ts           Server actions (toggle job, add shopping item, answer quiz, …)
@@ -117,6 +120,36 @@ from the Functional Spec's intent map (Section 6). The app is fully usable
 either way; the fallback exists so a clone of this repo works out of the
 box with zero setup.
 
+## Auth / roles
+
+What's actually enforced now, not just hidden in the UI:
+
+- Switching "viewing as" into a **Parent** profile requires that profile's
+  PIN (`src/components/ProfileSwitcher.tsx`), checked against a salted hash
+  via Node's built-in `scrypt` (`src/lib/auth.ts`) — the plaintext PIN is
+  never stored. Switching into a **Child** profile needs nothing, per
+  Functional Spec Section 5.1 ("children do not need their own login
+  credentials on shared devices").
+- Every admin-only server action (`addJob`, `addBonusPoints` in
+  `src/app/actions.ts`) calls `requireAdmin(actingProfileId)` and throws if
+  the acting profile isn't a Parent — this runs server-side regardless of
+  what the UI shows, so it's a real check, not just a hidden button.
+- The UI also hides these controls from Child viewers (no "Add a job" form,
+  no "Give bonus points" button) so the server check is a backstop, not the
+  first line of defense a kid runs into.
+
+What this **isn't**: real accounts. There's no signup, no email, no
+password reset, no session expiry — just one shared cookie naming who
+you're "viewing as," gated by a 4-digit PIN for Parent profiles. That's a
+reasonable match for a single trusted household on a local database, and
+explicitly not something to rely on once this moves to Supabase with
+multiple real devices — at that point, Supabase Auth (real accounts,
+sessions, and row-level security tied to family/profile) should replace
+this entirely rather than sit alongside it. New Parent profiles created
+after the seed (there's no UI for this yet — Section 5.1's onboarding flow
+isn't built) would need a PIN set directly via `hashPin()` from
+`src/lib/auth.ts`.
+
 ## Moving to Supabase
 
 The schema was written to translate cleanly:
@@ -139,9 +172,10 @@ These are the honest gaps against Phase 1 in the spec's MVP Phasing
 (Section 12) — worth knowing before treating this as further along than it
 is:
 
-- No authentication — see "Auth / roles" above.
+- Auth is a PIN gate, not real accounts — see "Auth / roles" above.
 - Weather uses an unofficial API — see "Weather data" above.
 - Chat needs an API key to use real Claude — without one it's rule-based (see "AI chat" above).
 - No push notifications.
-- Admin-only actions (editing jobs, setting the dinner roster) aren't
-  permission-gated — anyone can currently do anything.
+- No onboarding UI for adding family members or setting a new Parent's PIN
+  (there's no UI for the dinner roster either) — these are seed-data or
+  code-level operations for now, not something a parent can do in the app.

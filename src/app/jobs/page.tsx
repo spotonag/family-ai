@@ -35,7 +35,13 @@ export default async function JobsPage() {
 
         <section className="card mb-3">
           <p className="card-title">Add a job</p>
-          <JobForm familyId={family.id} profiles={family.profiles} />
+          {viewer.role === "parent" ? (
+            <JobForm familyId={family.id} actingProfileId={viewer.id} profiles={family.profiles} />
+          ) : (
+            <p className="text-sm" style={{ color: "var(--muted)" }}>
+              Ask a parent to add a new job — switch to their profile with their PIN.
+            </p>
+          )}
         </section>
 
         <section className="card mb-3">

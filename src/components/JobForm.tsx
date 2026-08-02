@@ -5,7 +5,7 @@ import { addJob } from "@/app/actions";
 
 type Profile = { id: string; name: string };
 
-export function JobForm({ familyId, profiles }: { familyId: string; profiles: Profile[] }) {
+export function JobForm({ familyId, actingProfileId, profiles }: { familyId: string; actingProfileId: string; profiles: Profile[] }) {
   const [pending, startTransition] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -20,6 +20,7 @@ export function JobForm({ familyId, profiles }: { familyId: string; profiles: Pr
       style={{ opacity: pending ? 0.6 : 1 }}
     >
       <input type="hidden" name="familyId" value={familyId} />
+      <input type="hidden" name="actingProfileId" value={actingProfileId} />
       <div className="flex gap-2">
         <input
           type="text"

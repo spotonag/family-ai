@@ -13,10 +13,10 @@ export async function getFamily() {
   return family;
 }
 
-export function pickViewer(
-  profiles: { id: string; name: string }[],
+export function pickViewer<T extends { id: string; name: string }>(
+  profiles: T[],
   requestedId?: string
-) {
+): T {
   if (requestedId) {
     const found = profiles.find((p) => p.id === requestedId);
     if (found) return found;

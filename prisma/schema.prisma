@@ -36,6 +36,10 @@ model Profile {
   avatarInitial String @default("?")
   // role: "parent" | "child"
   role        String   @default("child")
+  // PIN protects switching "viewing as" into a parent profile — see
+  // src/lib/auth.ts. Null for child profiles (no PIN needed on shared devices).
+  pinHash     String?
+  pinSalt     String?
   createdAt   DateTime @default(now())
 
   family        Family         @relation(fields: [familyId], references: [id], onDelete: Cascade)

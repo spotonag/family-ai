@@ -9,6 +9,7 @@ import { QuizCard } from "@/components/QuizCard";
 import { ProfileSwitcher } from "@/components/ProfileSwitcher";
 import { NavBar } from "@/components/NavBar";
 import { WeatherIcon } from "@/components/WeatherIcon";
+import { BonusPointsForm } from "@/components/BonusPointsForm";
 
 export default async function HomePage() {
   const family = await getFamily();
@@ -282,6 +283,7 @@ export default async function HomePage() {
                 <span className="text-xs font-bold tabular-nums w-9 text-right">{row.points}</span>
               </div>
             ))}
+            {viewer.role === "parent" && <BonusPointsForm actingProfileId={viewer.id} profiles={family.profiles} />}
           </section>
 
           <section className="card" style={{ background: "linear-gradient(160deg, var(--surface) 60%, var(--gold-soft))" }}>
