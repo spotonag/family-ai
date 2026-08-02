@@ -24,10 +24,12 @@ export function ChatWindow({ familyId, profileId, viewerName }: { familyId: stri
   function submit(text: string) {
     const trimmed = text.trim();
     if (!trimmed) return;
-    setMessages((m) => [...m, { role: "user", text: trimmed }]);
+    const nextMessages = [...messages, { role: "user" as const, text: trimmed }];
+    setMessages(nextMessages);
     setInput("");
     startTransition(async () => {
-      const reply = await sendMessage(trimmed, familyId, profileId);
+      const history = nextMessages.map((m) => ({ role: m.role === "user" ? ("user" as const) : ("assistant" as const), text: m.text }));
+      const reply = await sendMessage(history, familyId, profileId);
       setMessages((m) => [...m, { role: "ai", text: reply }]);
       requestAnimationFrame(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }));
     });

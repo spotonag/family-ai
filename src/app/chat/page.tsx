@@ -1,4 +1,5 @@
 import { getFamily, getViewerId, pickViewer } from "@/lib/family";
+import { isLlmConfigured } from "@/lib/llmChat";
 import { ChatWindow } from "@/components/ChatWindow";
 import { NavBar } from "@/components/NavBar";
 import { ProfileSwitcher } from "@/components/ProfileSwitcher";
@@ -8,6 +9,7 @@ export default async function ChatPage() {
   const family = await getFamily();
   const viewerId = await getViewerId();
   const viewer = pickViewer(family.profiles, viewerId);
+  const usingLlm = isLlmConfigured();
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -21,9 +23,16 @@ export default async function ChatPage() {
           </div>
           <ProfileSwitcher profiles={family.profiles} viewerId={viewer.id} />
         </header>
-        <p className="text-xs mb-3" style={{ color: "var(--muted)" }}>
-          Rule-based demo — understands the phrases below. Swap in a real model per README.
-        </p>
+        <div className="flex items-center gap-2 mb-3">
+          <span className="chip" style={usingLlm ? { background: "var(--accent-soft)", color: "var(--accent)" } : undefined}>
+            {usingLlm ? "AI: Claude" : "AI: rule-based demo"}
+          </span>
+          {!usingLlm && (
+            <span className="text-xs" style={{ color: "var(--muted)" }}>
+              Add ANTHROPIC_API_KEY to .env for real understanding — see README.
+            </span>
+          )}
+        </div>
         <ChatWindow familyId={family.id} profileId={viewer.id} viewerName={viewer.name} />
       </div>
       <NavBar active="/chat" />

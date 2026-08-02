@@ -1,9 +1,8 @@
 # Family AI
 
 Phase 1 MVP of the Family AI app, built from the Design Brief and Functional
-Specification. Home screen, Shopping, Jobs, Calendar, and a rule-based AI
-chat, all backed by a real (local) database — no mock data on screen except
-the weather.
+Specification. Home screen, Shopping, Jobs, Calendar, live Boort weather,
+and an AI chat, all backed by a real (local) database.
 
 ## What's real vs. stubbed
 
@@ -12,7 +11,7 @@ the weather.
 | Data model, database, server actions | Real — SQLite via Prisma locally, translates directly to Postgres/Supabase |
 | Home screen (Weather, Briefing, Dinner, Jobs, Shopping, Feed, Tomorrow, Quiz, Points, Weekly Wrap-Up) | Real, reading/writing the database |
 | Shopping / Jobs / Calendar full screens | Real |
-| AI chat | **Rule-based placeholder.** Matches the exact example phrases from the Functional Spec's intent map (Section 6) with regex — not a real language model. See "Swapping in a real AI model" below. |
+| AI chat | **Real Claude, with a rule-based fallback.** If `ANTHROPIC_API_KEY` is set, chat runs through actual Claude with tool use — understands natural phrasing, asks clarifying questions, handles multi-part requests. With no key, it automatically falls back to matching the exact example phrases from the Functional Spec's intent map (Section 6) with regex. See "AI chat" below. |
 | Weather | **Real** — live Bureau of Meteorology data for Boort, VIC. See "Weather data" below for important caveats. |
 | Auth / roles | **None yet.** Anyone can switch "viewing as" any family member via the avatar row — there's no login and no enforcement of the Parent/Admin vs. Child permissions from the spec's Section 2. Fine for a single-family local demo, not for a real deployment. |
 | Voice | Not built yet — this milestone is text/click only. |
@@ -37,17 +36,20 @@ you want a clean slate.
 ## Project structure
 
 ```
-prisma/schema.prisma   Data model (Section 3 of the Functional Spec)
-prisma/seed.ts         Demo data
-src/lib/db.ts           Prisma client
-src/lib/family.ts        Current family / viewer helpers
-src/lib/queries.ts       Leaderboard + weekly wrap-up text
-src/lib/intents.ts       Rule-based NLU for the chat placeholder
-src/app/page.tsx         Home screen
+prisma/schema.prisma      Data model (Section 3 of the Functional Spec)
+prisma/seed.ts            Demo data
+src/lib/db.ts              Prisma client
+src/lib/family.ts           Current family / viewer helpers
+src/lib/queries.ts          Leaderboard + weekly wrap-up text
+src/lib/weather.ts          Live BOM weather + cache/fallback
+src/lib/intents.ts          Rule-based NLU (fallback chat mode)
+src/lib/intentExecutor.ts   Executes a resolved Intent against the database — shared by both chat modes
+src/lib/llmChat.ts          Real Claude tool-use loop (active chat mode)
+src/app/page.tsx            Home screen
 src/app/shopping /jobs /calendar /chat   Full screens
-src/app/actions.ts        Server actions (toggle job, add shopping item, answer quiz, …)
-src/app/chat/actions.ts   Chat message handling
-src/components/          UI pieces shared across screens
+src/app/actions.ts           Server actions (toggle job, add shopping item, answer quiz, …)
+src/app/chat/actions.ts      Picks LLM vs. rule-based mode, calls the right one
+src/components/             UI pieces shared across screens
 ```
 
 ## Weather data
@@ -85,20 +87,35 @@ Important caveats, worth knowing before relying on this:
   `src/lib/weather.ts` — resolve a new one by hitting
   `https://api.weather.bom.gov.au/v1/locations?search=<town name>`.
 
-## Swapping in a real AI model
+## AI chat
 
-`src/lib/intents.ts` is intentionally isolated: it's a pure function,
-`parseIntent(text) => Intent`, with no database or framework code in it.
-`src/app/chat/actions.ts` calls it once and then executes the resulting
-intent against the database.
+Add your Anthropic API key to `.env` (copy `.env.example`, uncomment
+`ANTHROPIC_API_KEY`, paste a key from https://console.anthropic.com) and
+restart the dev server. The `/chat` page's badge switches from "AI:
+rule-based demo" to "AI: Claude" automatically — there's no other config
+needed, and nothing else in the app changes.
 
-To wire up a real model (e.g. Claude), replace the body of `sendMessage` in
-`chat/actions.ts` with a call to the model — give it the family's current
-state (today's jobs, shopping list, dinner plan) as context and a tool
-definition matching the `Intent` union already defined in `intents.ts`, so
-the rest of the app (the switch statement that executes each intent) doesn't
-need to change. You'll need an API key from whichever provider the family
-chooses (see the Functional Spec, Section 13, Open Decisions).
+How it works (`src/lib/llmChat.ts`): each message goes to Claude with a
+system prompt naming the current viewer and family, plus nine tools — one
+per action the assistant can take (add/remove a shopping item, check the
+dinner plan, list or complete a job, look up tomorrow or a specific event,
+check the leaderboard). Claude decides which tool(s) to call rather than us
+guessing from regex, so it handles phrasing the rule-based parser can't —
+multi-item requests, follow-ups, "actually, make that two," clarifying
+questions when something's ambiguous. Tool calls run through
+`executeIntent()` in `src/lib/intentExecutor.ts` — the *same* function the
+rule-based fallback uses — so both chat modes touch the database identically
+and can't drift apart. Results go back to Claude, which composes the final
+reply in its own words rather than reciting a canned string.
+
+Model defaults to `claude-sonnet-5`; override with `ANTHROPIC_MODEL` in
+`.env` (e.g. a Haiku model for lower cost, since this runs on every chat
+message). With no key set, `chat/actions.ts` falls back to
+`src/lib/intents.ts`'s regex parser — a pure `parseIntent(text) => Intent`
+function with no framework code in it, matching the exact example phrases
+from the Functional Spec's intent map (Section 6). The app is fully usable
+either way; the fallback exists so a clone of this repo works out of the
+box with zero setup.
 
 ## Moving to Supabase
 
@@ -124,7 +141,7 @@ is:
 
 - No authentication — see "Auth / roles" above.
 - Weather uses an unofficial API — see "Weather data" above.
-- Chat is rule-based, not a real LLM (see above).
+- Chat needs an API key to use real Claude — without one it's rule-based (see "AI chat" above).
 - No push notifications.
 - Admin-only actions (editing jobs, setting the dinner roster) aren't
   permission-gated — anyone can currently do anything.
