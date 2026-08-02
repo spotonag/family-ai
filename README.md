@@ -136,8 +136,8 @@ What's actually enforced now, not just hidden in the UI:
   never stored. Switching into a **Child** profile needs nothing, per
   Functional Spec Section 5.1 ("children do not need their own login
   credentials on shared devices").
-- Every admin-only server action (`addJob`, `deleteJob`, `addBonusPoints`,
-  `addFamilyMember` in `src/app/actions.ts`) calls
+- Every admin-only server action (`addJob`, `deleteJob`, `adjustPoints`,
+  `addFamilyMember`, `updateProfileName` in `src/app/actions.ts`) calls
   `requireAdmin(actingProfileId)` and throws if the acting profile isn't a
   Parent — this runs server-side regardless of what the UI shows, so it's a
   real check, not just a hidden button. The same actions reached via AI
@@ -146,12 +146,17 @@ What's actually enforced now, not just hidden in the UI:
   replies "only a parent can do that" instead of throwing, since a thrown
   error mid-conversation would be a worse experience than a clear no.
 - The UI also hides these controls from Child viewers (no "Add a job" form,
-  no delete button on jobs, no "Give bonus points" button, no add-member
-  form on Settings) so the server check is a backstop, not the first line
-  of defense a kid runs into.
-- **Adding family members** (like Steve) goes through `/settings`, visible
-  only to Parent viewers — name, role, and a PIN if they're a parent. No
-  edit or remove yet, just add; see "Known gaps" below.
+  no delete button on jobs, no "Adjust points" button, no add/edit-member
+  controls on Settings) so the server check is a backstop, not the first
+  line of defense a kid runs into.
+- **Adding family members** (like Steve) and **renaming** any existing one
+  goes through `/settings`, visible only to Parent viewers. No remove yet;
+  see "Known gaps" below.
+- **Points are an append-only ledger, not an editable total** (Section 3 of
+  the Functional Spec) — "Adjust points" on the Home screen's Family Points
+  card writes a positive or negative entry rather than overwriting a
+  number, so there's always a record of who changed what and why (the
+  optional note field), not just a final total that could silently drift.
 
 What this **isn't**: real accounts. There's no signup, no email, no
 password reset, no session expiry — just one shared cookie naming who

@@ -1,5 +1,6 @@
 import { getFamily, getViewerId, pickViewer } from "@/lib/family";
 import { AddFamilyMemberForm } from "@/components/AddFamilyMemberForm";
+import { EditableFamilyMemberRow } from "@/components/EditableFamilyMemberRow";
 import { NavBar } from "@/components/NavBar";
 import { ProfileSwitcher } from "@/components/ProfileSwitcher";
 import Link from "next/link";
@@ -34,17 +35,9 @@ export default async function SettingsPage() {
           <>
             <section className="card mb-3">
               <p className="card-title">Family members</p>
-              <div className="flex flex-col gap-2 mb-3">
+              <div className="flex flex-col gap-3 mb-3">
                 {family.profiles.map((p) => (
-                  <div key={p.id} className="flex items-center gap-2.5">
-                    <div className="avatar sm" style={{ background: p.avatarColor }}>
-                      {p.avatarInitial}
-                    </div>
-                    <span className="text-sm font-semibold">{p.name}</span>
-                    <span className="chip" style={{ marginLeft: "auto" }}>
-                      {p.role === "parent" ? "Parent" : "Child"}
-                    </span>
-                  </div>
+                  <EditableFamilyMemberRow key={p.id} profile={p} actingProfileId={viewer.id} />
                 ))}
               </div>
             </section>

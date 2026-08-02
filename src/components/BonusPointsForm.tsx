@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { addBonusPoints } from "@/app/actions";
+import { adjustPoints } from "@/app/actions";
 
 type Profile = { id: string; name: string };
 
@@ -17,7 +17,7 @@ export function BonusPointsForm({ actingProfileId, profiles }: { actingProfileId
         className="text-xs font-bold mt-2"
         style={{ color: "var(--accent)" }}
       >
-        + Give bonus points
+        + Adjust points
       </button>
     );
   }
@@ -26,7 +26,7 @@ export function BonusPointsForm({ actingProfileId, profiles }: { actingProfileId
     <form
       ref={formRef}
       action={(formData) => {
-        startTransition(() => addBonusPoints(formData));
+        startTransition(() => adjustPoints(formData));
         formRef.current?.reset();
         setOpen(false);
       }}
@@ -50,10 +50,9 @@ export function BonusPointsForm({ actingProfileId, profiles }: { actingProfileId
         <input
           type="number"
           name="amount"
-          placeholder="+10"
+          placeholder="+10 / -5"
           required
-          min={1}
-          className="w-16 text-sm text-center"
+          className="w-20 text-sm text-center"
           style={{ border: "1px solid var(--border)", background: "var(--surface-2)", borderRadius: 10, padding: "6px", color: "var(--ink)" }}
         />
       </div>
@@ -61,14 +60,17 @@ export function BonusPointsForm({ actingProfileId, profiles }: { actingProfileId
         <input
           type="text"
           name="note"
-          placeholder="For helping Grandma…"
+          placeholder="For helping Grandma… / Left the jobs undone"
           className="flex-1 text-xs"
           style={{ border: "1px solid var(--border)", background: "var(--surface-2)", borderRadius: 10, padding: "6px 10px", color: "var(--ink)" }}
         />
         <button type="submit" className="text-xs font-bold" style={{ background: "var(--accent)", color: "var(--accent-ink)", borderRadius: 10, padding: "6px 14px" }}>
-          Give
+          Apply
         </button>
       </div>
+      <p className="text-[11px]" style={{ color: "var(--muted)" }}>
+        Positive to add, negative to deduct.
+      </p>
     </form>
   );
 }

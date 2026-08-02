@@ -130,6 +130,25 @@ export async function addFamilyMember(formData: FormData): Promise<{ ok: boolean
   return { ok: true };
 }
 
+export async function updateProfileName(
+  profileId: string,
+  name: string,
+  actingProfileId: string
+): Promise<{ ok: boolean; error?: string }> {
+  await requireAdmin(actingProfileId); // Parent/Admin only — Functional Spec Section 2
+
+  const trimmed = name.trim();
+  if (!trimmed) return { ok: false, error: "Name can't be empty." };
+
+  await db.profile.update({
+    where: { id: profileId },
+    data: { name: trimmed, avatarInitial: trimmed[0].toUpperCase() },
+  });
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
 export async function deleteJob(jobId: string, actingProfileId: string) {
   await requireAdmin(actingProfileId); // Parent/Admin only — Functional Spec Section 2
 
@@ -150,15 +169,18 @@ export async function deleteJob(jobId: string, actingProfileId: string) {
   revalidatePath("/jobs");
 }
 
-export async function addBonusPoints(formData: FormData) {
+export async function adjustPoints(formData: FormData) {
   const actingProfileId = String(formData.get("actingProfileId") ?? "");
   await requireAdmin(actingProfileId); // Parent/Admin only — Functional Spec Section 2
 
   const targetProfileId = String(formData.get("targetProfileId") ?? "");
   const amount = Number(formData.get("amount") ?? 0);
-  const note = String(formData.get("note") ?? "").trim() || "Bonus";
+  const note = String(formData.get("note") ?? "").trim() || (amount >= 0 ? "Bonus" : "Adjustment");
   if (!targetProfileId || !amount) return;
 
+  // Points are an append-only ledger (Section 3 of the Functional Spec),
+  // not a mutable total — a deduction is a negative-amount entry, same as
+  // any other change, which keeps a full audit trail of every adjustment.
   await db.pointsLedger.create({
     data: { profileId: targetProfileId, source: "bonus", amount, note },
   });
