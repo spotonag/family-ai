@@ -2,13 +2,18 @@
 
 Phase 1 MVP of the Family AI app, built from the Design Brief and Functional
 Specification. Home screen, Shopping, Jobs, Calendar, live Boort weather,
-and an AI chat, all backed by a real (local) database.
+and an AI chat, all backed by a real database.
+
+**Live at https://family-ai-k3zp.onrender.com** — real Supabase/Postgres,
+real Claude, real BOM weather, deployed on Render. Local dev in this repo
+still defaults to SQLite (see "Getting started"); the deployed instance is
+the one running against the real stack end to end.
 
 ## What's real vs. stubbed
 
 | Area | Status |
 |---|---|
-| Data model, database, server actions | Real — SQLite via Prisma locally. Supabase/Postgres schema is generated and ready (`prisma/supabase/`), not yet connected — see "Moving to Supabase" below for why. |
+| Data model, database, server actions | Real — SQLite locally by default; the deployed instance runs on Supabase/Postgres. See "Moving to Supabase" below for the connection details and a couple of hard-won gotchas. |
 | Home screen (Weather, Briefing, Dinner, Jobs, Shopping, Feed, Tomorrow, Quiz, Points, Weekly Wrap-Up) | Real, reading/writing the database |
 | Shopping / Jobs / Calendar full screens | Real |
 | AI chat | **Real Claude, with a rule-based fallback.** If `ANTHROPIC_API_KEY` is set, chat runs through actual Claude with tool use — understands natural phrasing, asks clarifying questions, handles multi-part requests. With no key, it automatically falls back to matching the exact example phrases from the Functional Spec's intent map (Section 6) with regex. See "AI chat" below. |
@@ -152,26 +157,39 @@ isn't built) would need a PIN set directly via `hashPin()` from
 
 ## Moving to Supabase
 
-**Status: prepped, not connected.** A Supabase project exists
-(`rhlhzsmzpzpnaqhiukgh`) and its credentials are in `.env` (commented out),
-but this app is still running on local SQLite because the sandbox this was
-built in has no outbound raw TCP — only HTTPS through a proxy — so it
-can't open a Postgres connection (5432/6543) at all, to either Supabase's
-direct host or its connection pooler. That's an environment limitation, not
-a Supabase problem, and it'll be a non-issue anywhere with normal network
-access (your own machine, CI, a real deployment).
+**Status: connected and live** — the Render deployment runs against a real
+Supabase Postgres project (`rhlhzsmzpzpnaqhiukgh`). This repo's own
+`prisma/schema.prisma` defaults to `provider = "postgresql"` (matching
+production); local dev needs it switched to `"sqlite"` plus a local
+`DATABASE_URL` to run against the bundled SQLite file instead — see
+"Getting started" above for that local setup, since developing against a
+live shared database isn't what you want day to day.
 
-Everything that *can* be done without a live connection is already done:
-`prisma/supabase/001_init.sql` is the full Postgres schema, generated
-offline from `prisma/schema.prisma`. See `prisma/supabase/README.md` for
-exactly how to apply it and flip the app over once you're running this
-somewhere with real network access — it's a two-file change
-(`schema.prisma`'s provider, `.env`'s `DATABASE_URL`) plus either pasting
-that SQL into Supabase's SQL Editor or running `npx prisma db push`.
+This was built and originally connected from a sandboxed environment with
+no outbound raw TCP (HTTPS-through-proxy only), so the schema was generated
+offline (`prisma/supabase/001_init.sql`, still in the repo as a reference/
+bootstrap artifact) and the actual connection + seeding was done from
+Render's own Shell, which does have normal network access. Two things that
+tripped this up, worth knowing if you're setting this up somewhere new:
+
+- **The pooler connection string needs `?pgbouncer=true&connection_limit=1`
+  appended**, or every query fails with `"prepared statement already
+  exists"` — Supabase's pooler runs PgBouncer in transaction mode, which
+  doesn't support Prisma's default prepared-statement usage. Full
+  connection string shape is in `prisma/supabase/README.md`.
+- **`next build` tries to statically pre-render every page by default.**
+  Every page here depends on live DB state and a per-request viewer
+  cookie, so none of them should be pre-rendered — each `page.tsx` exports
+  `export const dynamic = "force-dynamic"` to make that explicit. Without
+  it, a fresh deploy against an empty (unseeded) database fails the build
+  entirely, since the pre-render attempt throws before the app ever serves
+  a real request.
 
 Supabase also gives you real-time subscriptions and auth for free, which
-covers the "all devices stay synced" and "each family member has an
-account" requirements from the Design Brief — both currently missing here.
+would cover the "all devices stay synced" and "each family member has an
+account" requirements from the Design Brief — both still using the
+lightweight approach described in "Auth / roles" above, not yet Supabase's
+own versions of either.
 
 ## Known gaps vs. the Functional Spec
 
