@@ -109,12 +109,13 @@ model CalendarEvent {
   title     String
   startTime DateTime
   endTime   DateTime?
-  ownerId   String?
   // category: "school" | "sport" | "appointment" | "other"
   category  String   @default("other")
 
-  family Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  owner  Profile? @relation(fields: [ownerId], references: [id])
+  family    Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  // Zero, one, or many family members this event applies to — an event
+  // with no attendees is a whole-family thing (e.g. "Bin night").
+  attendees Profile[]
 }
 
 model QuizQuestion {

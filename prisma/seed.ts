@@ -103,8 +103,8 @@ async function main() {
       familyId: family.id,
       title: "Netball",
       startTime: netball,
-      ownerId: anna.id,
       category: "sport",
+      attendees: { connect: [{ id: anna.id }] },
     },
   });
 

@@ -1,5 +1,7 @@
 import { db } from "@/lib/db";
 import { getFamily, getViewerId, pickViewer, startOfToday } from "@/lib/family";
+import { CalendarEventForm } from "@/components/CalendarEventForm";
+import { CalendarEventRow } from "@/components/CalendarEventRow";
 import { NavBar } from "@/components/NavBar";
 import { ProfileSwitcher } from "@/components/ProfileSwitcher";
 import Link from "next/link";
@@ -13,7 +15,7 @@ export default async function CalendarPage() {
 
   const events = await db.calendarEvent.findMany({
     where: { familyId: family.id, startTime: { gte: startOfToday() } },
-    include: { owner: true },
+    include: { attendees: true },
     orderBy: { startTime: "asc" },
   });
 
@@ -30,6 +32,11 @@ export default async function CalendarPage() {
           <ProfileSwitcher profiles={family.profiles} viewerId={viewer.id} />
         </header>
 
+        <section className="card mb-3">
+          <p className="card-title">Add to calendar</p>
+          <CalendarEventForm familyId={family.id} profiles={family.profiles} />
+        </section>
+
         <section className="card">
           <p className="card-title">Upcoming</p>
           {events.length === 0 && (
@@ -38,19 +45,14 @@ export default async function CalendarPage() {
             </p>
           )}
           {events.map((event) => (
-            <div key={event.id} className="job-row">
-              <div className="text-xs font-bold w-24 flex-shrink-0" style={{ color: "var(--accent)" }}>
-                {event.startTime.toLocaleDateString("en-AU", { weekday: "short", day: "numeric" })}
-                <br />
-                {event.startTime.toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" })}
-              </div>
-              <div>
-                <div className="text-sm font-semibold">{event.title}</div>
-                <div className="text-xs" style={{ color: "var(--muted)" }}>
-                  {event.owner?.name ?? "Family"} · {event.category}
-                </div>
-              </div>
-            </div>
+            <CalendarEventRow
+              key={event.id}
+              id={event.id}
+              title={event.title}
+              category={event.category}
+              startTime={event.startTime}
+              attendees={event.attendees}
+            />
           ))}
         </section>
       </div>

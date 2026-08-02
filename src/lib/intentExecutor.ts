@@ -157,12 +157,15 @@ export async function executeIntent(intent: Intent, familyId: string, profileId:
       tomorrowEnd.setHours(23, 59, 59, 999);
       const events = await db.calendarEvent.findMany({
         where: { familyId, startTime: { gte: tomorrowStart, lte: tomorrowEnd } },
-        include: { owner: true },
+        include: { attendees: true },
         orderBy: { startTime: "asc" },
       });
       if (events.length === 0) return "Nothing on tomorrow yet.";
       return events
-        .map((e) => `${e.title}${e.owner ? ` (${e.owner.name})` : ""} at ${e.startTime.toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" })}`)
+        .map((e) => {
+          const who = e.attendees.length ? ` (${e.attendees.map((a) => a.name).join(", ")})` : "";
+          return `${e.title}${who} at ${e.startTime.toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" })}`;
+        })
         .join(", ");
     }
 

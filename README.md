@@ -187,11 +187,12 @@ bootstrap artifact) and the actual connection + seeding was done from
 Render's own Shell, which does have normal network access. Two things that
 tripped this up, worth knowing if you're setting this up somewhere new:
 
-- **The pooler connection string needs `?pgbouncer=true&connection_limit=1`
+- **The pooler connection string needs `?pgbouncer=true&connection_limit=5`
   appended**, or every query fails with `"prepared statement already
   exists"` — Supabase's pooler runs PgBouncer in transaction mode, which
-  doesn't support Prisma's default prepared-statement usage. Full
-  connection string shape is in `prisma/supabase/README.md`.
+  doesn't support Prisma's default prepared-statement usage. Use
+  `connection_limit=5`, not `1` — see `prisma/supabase/README.md` for why
+  `1` specifically caused a real outage here.
 - **`next build` tries to statically pre-render every page by default.**
   Every page here depends on live DB state and a per-request viewer
   cookie, so none of them should be pre-rendered — each `page.tsx` exports
@@ -205,6 +206,28 @@ would cover the "all devices stay synced" and "each family member has an
 account" requirements from the Design Brief — both still using the
 lightweight approach described in "Auth / roles" above, not yet Supabase's
 own versions of either.
+
+### Schema changes after go-live
+
+Once the live database has real data in it, a schema change (a new field,
+a changed relation) needs to actually reach Supabase, not just get
+committed here. There's no formal migration history for the Postgres side
+(no live connection to generate one from this sandbox — see
+`prisma/supabase/README.md`), so the workflow is: commit the
+`schema.prisma` change, then from **Render's Shell** (Environment tab has
+the right `DATABASE_URL` already configured) run:
+
+```bash
+npx prisma db push --accept-data-loss
+```
+
+`--accept-data-loss` skips the interactive confirmation prompt, which the
+Shell can't answer anyway — read what it would have warned about first if
+you're unsure (Render's Shell runs `db push` without it fine, it just
+pauses for input `db push` alone would need). This applies the new schema
+directly, preserving existing rows for anything that wasn't
+restructured — a genuinely dropped/renamed column loses that column's
+data, same as it would for any Postgres `ALTER TABLE`.
 
 ## Known gaps vs. the Functional Spec
 

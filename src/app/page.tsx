@@ -46,7 +46,7 @@ export default async function HomePage() {
     db.feedPost.findFirst({ where: { familyId: family.id }, include: { author: true }, orderBy: { createdAt: "desc" } }),
     db.calendarEvent.findFirst({
       where: { familyId: family.id, startTime: { gte: tomorrowStart } },
-      include: { owner: true },
+      include: { attendees: true },
       orderBy: { startTime: "asc" },
     }),
     getLeaderboard(family.id),
@@ -66,7 +66,7 @@ export default async function HomePage() {
       ? `There ${openJobs.length === 1 ? "is" : "are"} ${openJobs.length} family job${openJobs.length === 1 ? "" : "s"} still outstanding.`
       : "All family jobs are done.",
     tomorrowEvent
-      ? `${tomorrowEvent.owner?.name ?? "Someone"} has ${tomorrowEvent.title} tomorrow at ${tomorrowEvent.startTime.toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" })}.`
+      ? `${tomorrowEvent.attendees.length ? tomorrowEvent.attendees.map((a) => a.name).join(" and ") : "The family"} ${tomorrowEvent.attendees.length === 1 ? "has" : "have"} ${tomorrowEvent.title} tomorrow at ${tomorrowEvent.startTime.toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" })}.`
       : null,
     shoppingItems.length > 0
       ? `There ${shoppingItems.length === 1 ? "is" : "are"} ${shoppingItems.length} item${shoppingItems.length === 1 ? "" : "s"} on the shopping list.`
@@ -269,7 +269,7 @@ export default async function HomePage() {
                 <div>
                   <div className="text-sm font-semibold">
                     {tomorrowEvent.title}
-                    {tomorrowEvent.owner ? ` — ${tomorrowEvent.owner.name}` : ""}
+                    {tomorrowEvent.attendees.length ? ` — ${tomorrowEvent.attendees.map((a) => a.name).join(", ")}` : ""}
                   </div>
                 </div>
               </div>

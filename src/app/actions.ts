@@ -188,6 +188,37 @@ export async function adjustPoints(formData: FormData) {
   revalidatePath("/");
 }
 
+export async function addCalendarEvent(formData: FormData) {
+  const familyId = String(formData.get("familyId") ?? "");
+  const title = String(formData.get("title") ?? "").trim();
+  const startTimeRaw = String(formData.get("startTime") ?? "");
+  const category = String(formData.get("category") ?? "other");
+  const attendeeIds = formData.getAll("attendeeIds").map(String).filter(Boolean);
+
+  if (!familyId || !title || !startTimeRaw) return;
+  const startTime = new Date(startTimeRaw);
+  if (Number.isNaN(startTime.getTime())) return;
+
+  await db.calendarEvent.create({
+    data: {
+      familyId,
+      title,
+      startTime,
+      category,
+      attendees: attendeeIds.length ? { connect: attendeeIds.map((id) => ({ id })) } : undefined,
+    },
+  });
+
+  revalidatePath("/");
+  revalidatePath("/calendar");
+}
+
+export async function deleteCalendarEvent(eventId: string) {
+  await db.calendarEvent.delete({ where: { id: eventId } });
+  revalidatePath("/");
+  revalidatePath("/calendar");
+}
+
 export async function markPurchased(itemId: string) {
   await db.shoppingItem.update({
     where: { id: itemId },
