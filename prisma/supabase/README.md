@@ -23,16 +23,29 @@ Supabase's connection pooler (the `*.pooler.supabase.com:6543` host) runs in
 PgBouncer "transaction" mode, which doesn't support prepared statements the
 way Prisma uses them by default — every query fails with something like
 `PostgresError { code: "42P05", message: "prepared statement \"s0\" already
-exists" }`. Append `?pgbouncer=true&connection_limit=1` to the end of the
-connection string to fix it:
+exists" }`. Append `?pgbouncer=true` to the end of the connection string to
+fix it:
 
 ```
-postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1
+postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=5
 ```
 
 This applies anywhere the pooler URL is used — local `.env`, Render's
 `DATABASE_URL` environment variable, CI, all of it. The direct-connection
 host (port 5432, IPv6-only) doesn't need this, since it isn't pooled.
+
+**Don't set `connection_limit=1`, even though you'll see it recommended a
+lot.** That advice is for serverless/edge functions (Vercel, Cloudflare
+Workers), where many isolated function instances each open their own tiny
+pool and you're trying to avoid exhausting PgBouncer's total connection
+slots across all of them combined. This app is a single persistent Node
+server (on Render or anywhere else running `next start`), not serverless —
+one process, one pool. Setting it to 1 anyway caused a real outage: the
+Home page alone fires ~9 queries in parallel, and with only one connection
+available they queue up and start throwing `P2024: Timed out fetching a new
+connection from the pool` once enough of them stack up, which in turn took
+the whole server down. `connection_limit=5` (or just omitting it, and
+letting Prisma pick a default) is the right call here.
 
 ## Applying it
 

@@ -2,19 +2,23 @@ import { db } from "@/lib/db";
 import { startOfWeek } from "@/lib/family";
 
 export async function getLeaderboard(familyId: string) {
-  const profiles = await db.profile.findMany({ where: { familyId } });
   const since = startOfWeek();
 
-  const entries = await Promise.all(
-    profiles.map(async (p) => {
-      const agg = await db.pointsLedger.aggregate({
-        where: { profileId: p.id, createdAt: { gte: since } },
-        _sum: { amount: true },
-      });
-      return { profile: p, points: agg._sum.amount ?? 0 };
-    })
-  );
+  // One grouped query instead of one aggregate per profile — matters more
+  // than it looks under a pooled connection with a small connection limit,
+  // where N parallel queries just queue up waiting for a free connection.
+  const [profiles, grouped] = await Promise.all([
+    db.profile.findMany({ where: { familyId } }),
+    db.pointsLedger.groupBy({
+      by: ["profileId"],
+      where: { profile: { familyId }, createdAt: { gte: since } },
+      _sum: { amount: true },
+    }),
+  ]);
 
+  const pointsByProfile = new Map(grouped.map((g) => [g.profileId, g._sum.amount ?? 0]));
+
+  const entries = profiles.map((p) => ({ profile: p, points: pointsByProfile.get(p.id) ?? 0 }));
   entries.sort((a, b) => b.points - a.points);
   return entries;
 }
