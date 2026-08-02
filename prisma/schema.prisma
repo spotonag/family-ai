@@ -169,6 +169,22 @@ model FeedPost {
   author Profile? @relation(fields: [authorId], references: [id])
 }
 
+// Single-row cache of the last successful BOM fetch for Boort, so the
+// Weather card can show "last known, updated Xh ago" if the API is down
+// (Functional Spec, Section 11 — error/edge states).
+model WeatherCache {
+  id          String   @id @default("boort")
+  tempC       Float
+  tempMaxC    Float?
+  tempMinC    Float?
+  windKmh     Int?
+  windDirection String?
+  rainChance  Int?
+  summary     String
+  iconDescriptor String?
+  fetchedAt   DateTime @default(now())
+}
+
 model Announcement {
   id        String   @id @default(cuid())
   familyId  String

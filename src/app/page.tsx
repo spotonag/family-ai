@@ -1,15 +1,14 @@
 import { db } from "@/lib/db";
 import { getFamily, getViewerId, pickViewer, startOfToday, endOfToday } from "@/lib/family";
 import { getLeaderboard, getWeeklyWrapUp } from "@/lib/queries";
+import { getBoortWeather, iconBucket } from "@/lib/weather";
 import { AudioButton } from "@/components/AudioButton";
 import { JobItem } from "@/components/JobItem";
 import { ShoppingList } from "@/components/ShoppingList";
 import { QuizCard } from "@/components/QuizCard";
 import { ProfileSwitcher } from "@/components/ProfileSwitcher";
 import { NavBar } from "@/components/NavBar";
-
-// Weather is mocked pending a real provider — see Functional Spec, Section 13 (Open Decisions).
-const WEATHER = { tempC: 17, wind: "18 km/h", summary: "Today: 17°C, showers this afternoon, moderate winds." };
+import { WeatherIcon } from "@/components/WeatherIcon";
 
 export default async function HomePage() {
   const family = await getFamily();
@@ -19,7 +18,7 @@ export default async function HomePage() {
   const tomorrowStart = new Date(startOfToday());
   tomorrowStart.setDate(tomorrowStart.getDate() + 1);
 
-  const [jobs, dinner, shoppingItems, quiz, feedPost, tomorrowEvent, leaderboard, wrapUp] = await Promise.all([
+  const [jobs, dinner, shoppingItems, quiz, feedPost, tomorrowEvent, leaderboard, wrapUp, weather] = await Promise.all([
     db.job.findMany({
       where: { familyId: family.id, dueDate: { gte: startOfToday(), lte: endOfToday() } },
       include: { assignedTo: true },
@@ -45,13 +44,14 @@ export default async function HomePage() {
     }),
     getLeaderboard(family.id),
     getWeeklyWrapUp(family.id),
+    getBoortWeather(),
   ]);
 
   const doneCount = jobs.filter((j) => j.status === "done").length;
   const openJobs = jobs.filter((j) => j.status !== "done");
 
   const briefing = [
-    `Good morning. ${WEATHER.summary}`,
+    `Good morning. ${weather?.summary ?? "The weather update isn't available right now."}`,
     dinner
       ? `${dinner.cook?.name ?? "Someone"} is cooking dinner${dinner.dishes ? `, ${dinner.dishes.name} is on dishes` : ""}.`
       : "No dinner planned yet.",
@@ -99,18 +99,34 @@ export default async function HomePage() {
 
         <div className="flex flex-col gap-3">
           <section className="card">
-            <p className="card-title">Today&rsquo;s Weather</p>
-            <div className="flex items-center gap-3">
-              <span className="text-4xl font-bold tabular-nums">{WEATHER.tempC}°</span>
-              <span className="text-xs font-semibold" style={{ color: "var(--muted)" }}>
-                Wind {WEATHER.wind}
-                <br />
-                Rain later
-              </span>
+            <div className="flex justify-between items-start mb-1">
+              <p className="card-title">Today&rsquo;s Weather &middot; Boort</p>
+              {weather?.stale && <span className="chip">Updated {weather.ageMinutes}m ago</span>}
             </div>
-            <p className="text-sm mt-3" style={{ color: "var(--ink-soft)" }}>
-              {WEATHER.summary}
-            </p>
+            {weather ? (
+              <>
+                <div className="flex items-center gap-3">
+                  <WeatherIcon bucket={iconBucket(weather.iconDescriptor)} />
+                  <span className="text-4xl font-bold tabular-nums">{Math.round(weather.tempC)}°</span>
+                  <span className="text-xs font-semibold" style={{ color: "var(--muted)" }}>
+                    {weather.windKmh !== null && (
+                      <>
+                        Wind {weather.windKmh} km/h {weather.windDirection}
+                        <br />
+                      </>
+                    )}
+                    {weather.rainChance !== null && `${weather.rainChance}% chance of rain`}
+                  </span>
+                </div>
+                <p className="text-sm mt-3" style={{ color: "var(--ink-soft)" }}>
+                  {weather.summary}
+                </p>
+              </>
+            ) : (
+              <p className="text-sm" style={{ color: "var(--muted)" }}>
+                Weather is unavailable right now — the Bureau of Meteorology API didn&rsquo;t respond.
+              </p>
+            )}
           </section>
 
           <section className="card">
