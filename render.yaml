@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: family-ai
+    runtime: node
+    plan: free
+    region: singapore
+    branch: main
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm start
+    autoDeploy: true
+
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+
+      - key: DATABASE_URL
+        sync: false
+
+      - key: ANTHROPIC_API_KEY
+        sync: false
+
+      - key: ANTHROPIC_MODEL
+        value: claude-sonnet-5
