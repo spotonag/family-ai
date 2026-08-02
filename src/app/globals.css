@@ -260,7 +260,7 @@ a {
   bottom: 0;
   display: flex;
   justify-content: space-around;
-  padding: 10px 6px calc(12px + env(safe-area-inset-bottom, 0px));
+  padding: 14px 6px calc(20px + env(safe-area-inset-bottom, 0px));
   background: color-mix(in srgb, var(--surface) 88%, transparent);
   backdrop-filter: blur(14px);
   border-top: 1px solid var(--border);
@@ -270,11 +270,11 @@ a {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
+  gap: 5px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 13px;
   font-weight: 700;
-  padding: 4px 12px;
+  padding: 8px 16px;
 }
 
 .navbtn.active {
