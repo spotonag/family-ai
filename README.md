@@ -8,7 +8,7 @@ and an AI chat, all backed by a real (local) database.
 
 | Area | Status |
 |---|---|
-| Data model, database, server actions | Real — SQLite via Prisma locally, translates directly to Postgres/Supabase |
+| Data model, database, server actions | Real — SQLite via Prisma locally. Supabase/Postgres schema is generated and ready (`prisma/supabase/`), not yet connected — see "Moving to Supabase" below for why. |
 | Home screen (Weather, Briefing, Dinner, Jobs, Shopping, Feed, Tomorrow, Quiz, Points, Weekly Wrap-Up) | Real, reading/writing the database |
 | Shopping / Jobs / Calendar full screens | Real |
 | AI chat | **Real Claude, with a rule-based fallback.** If `ANTHROPIC_API_KEY` is set, chat runs through actual Claude with tool use — understands natural phrasing, asks clarifying questions, handles multi-part requests. With no key, it automatically falls back to matching the exact example phrases from the Functional Spec's intent map (Section 6) with regex. See "AI chat" below. |
@@ -152,15 +152,22 @@ isn't built) would need a PIN set directly via `hashPin()` from
 
 ## Moving to Supabase
 
-The schema was written to translate cleanly:
+**Status: prepped, not connected.** A Supabase project exists
+(`rhlhzsmzpzpnaqhiukgh`) and its credentials are in `.env` (commented out),
+but this app is still running on local SQLite because the sandbox this was
+built in has no outbound raw TCP — only HTTPS through a proxy — so it
+can't open a Postgres connection (5432/6543) at all, to either Supabase's
+direct host or its connection pooler. That's an environment limitation, not
+a Supabase problem, and it'll be a non-issue anywhere with normal network
+access (your own machine, CI, a real deployment).
 
-1. Create a Supabase project, copy its Postgres connection string.
-2. In `prisma/schema.prisma`, change `provider = "sqlite"` to
-   `provider = "postgresql"` under `datasource db`.
-3. Set `DATABASE_URL` in `.env` to the Supabase connection string.
-4. Run `npx prisma migrate dev` to apply the schema to Postgres.
-5. `npm run db:seed` to load demo data (or write a real onboarding flow —
-   see Functional Spec Section 5.1).
+Everything that *can* be done without a live connection is already done:
+`prisma/supabase/001_init.sql` is the full Postgres schema, generated
+offline from `prisma/schema.prisma`. See `prisma/supabase/README.md` for
+exactly how to apply it and flip the app over once you're running this
+somewhere with real network access — it's a two-file change
+(`schema.prisma`'s provider, `.env`'s `DATABASE_URL`) plus either pasting
+that SQL into Supabase's SQL Editor or running `npx prisma db push`.
 
 Supabase also gives you real-time subscriptions and auth for free, which
 covers the "all devices stay synced" and "each family member has an
