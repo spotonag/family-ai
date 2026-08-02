@@ -20,6 +20,7 @@ export async function sendMessage(
       familyId,
       profileId,
       viewer.name,
+      viewer.role === "parent",
       allProfiles.map((p) => p.name)
     );
   }

@@ -104,9 +104,10 @@ rule-based demo" to "AI: Claude" automatically — there's no other config
 needed, and nothing else in the app changes.
 
 How it works (`src/lib/llmChat.ts`): each message goes to Claude with a
-system prompt naming the current viewer and family, plus nine tools — one
-per action the assistant can take (add/remove a shopping item, check the
-dinner plan, list or complete a job, look up tomorrow or a specific event,
+system prompt naming the current viewer, the family, and whether the
+viewer is a parent/admin, plus twelve tools — one per action the assistant
+can take (add/remove a shopping item, check or change the dinner plan,
+list/complete/add/remove a job, look up tomorrow or a specific event,
 check the leaderboard). Claude decides which tool(s) to call rather than us
 guessing from regex, so it handles phrasing the rule-based parser can't —
 multi-item requests, follow-ups, "actually, make that two," clarifying
@@ -135,13 +136,22 @@ What's actually enforced now, not just hidden in the UI:
   never stored. Switching into a **Child** profile needs nothing, per
   Functional Spec Section 5.1 ("children do not need their own login
   credentials on shared devices").
-- Every admin-only server action (`addJob`, `addBonusPoints` in
-  `src/app/actions.ts`) calls `requireAdmin(actingProfileId)` and throws if
-  the acting profile isn't a Parent — this runs server-side regardless of
-  what the UI shows, so it's a real check, not just a hidden button.
+- Every admin-only server action (`addJob`, `deleteJob`, `addBonusPoints`,
+  `addFamilyMember` in `src/app/actions.ts`) calls
+  `requireAdmin(actingProfileId)` and throws if the acting profile isn't a
+  Parent — this runs server-side regardless of what the UI shows, so it's a
+  real check, not just a hidden button. The same actions reached via AI
+  chat (changing the dinner plan, adding/removing a job) go through a
+  softer version of the same check in `src/lib/intentExecutor.ts` — it
+  replies "only a parent can do that" instead of throwing, since a thrown
+  error mid-conversation would be a worse experience than a clear no.
 - The UI also hides these controls from Child viewers (no "Add a job" form,
-  no "Give bonus points" button) so the server check is a backstop, not the
-  first line of defense a kid runs into.
+  no delete button on jobs, no "Give bonus points" button, no add-member
+  form on Settings) so the server check is a backstop, not the first line
+  of defense a kid runs into.
+- **Adding family members** (like Steve) goes through `/settings`, visible
+  only to Parent viewers — name, role, and a PIN if they're a parent. No
+  edit or remove yet, just add; see "Known gaps" below.
 
 What this **isn't**: real accounts. There's no signup, no email, no
 password reset, no session expiry — just one shared cookie naming who
@@ -201,6 +211,9 @@ is:
 - Weather uses an unofficial API — see "Weather data" above.
 - Chat needs an API key to use real Claude — without one it's rule-based (see "AI chat" above).
 - No push notifications.
-- No onboarding UI for adding family members or setting a new Parent's PIN
-  (there's no UI for the dinner roster either) — these are seed-data or
-  code-level operations for now, not something a parent can do in the app.
+- `/settings` covers adding a family member (Section 5.8) but not editing
+  or removing one, and there's no way to change a PIN after creation short
+  of a code-level operation.
+- No dedicated UI for editing the dinner roster beyond asking the AI to
+  change it — same for jobs, which can be added/removed via chat or the
+  Jobs page, but there's no bulk/recurring job editor.

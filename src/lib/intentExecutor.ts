@@ -3,6 +3,17 @@ import { db } from "@/lib/db";
 import { startOfToday, endOfToday } from "@/lib/family";
 import type { Intent } from "@/lib/intents";
 
+async function isAdminProfile(profileId: string): Promise<boolean> {
+  const profile = await db.profile.findUnique({ where: { id: profileId } });
+  return profile?.role === "parent";
+}
+
+async function findProfileByName(familyId: string, name: string) {
+  return db.profile.findFirst({ where: { familyId, name: { contains: name } } });
+}
+
+const NOT_ADMIN_REPLY = "Only a parent can do that — ask one of them to switch profiles first.";
+
 // Executes a resolved Intent against the database and returns the reply
 // text. Shared by both the rule-based parser (src/lib/intents.ts) and the
 // real-LLM tool-use path (src/app/chat/actions.ts) — whichever one
@@ -47,6 +58,37 @@ export async function executeIntent(intent: Intent, familyId: string, profileId:
       return parts.join(" ");
     }
 
+    case "set_dinner_plan": {
+      if (!(await isAdminProfile(profileId))) return NOT_ADMIN_REPLY;
+
+      const [cook, dishes] = await Promise.all([
+        intent.cookName ? findProfileByName(familyId, intent.cookName) : Promise.resolve(null),
+        intent.dishesName ? findProfileByName(familyId, intent.dishesName) : Promise.resolve(null),
+      ]);
+
+      await db.dinnerPlan.upsert({
+        where: { familyId_date: { familyId, date: startOfToday() } },
+        create: {
+          familyId,
+          date: startOfToday(),
+          mealName: intent.mealName,
+          cookId: cook?.id,
+          dishesId: dishes?.id,
+        },
+        update: {
+          mealName: intent.mealName,
+          ...(cook ? { cookId: cook.id } : {}),
+          ...(dishes ? { dishesId: dishes.id } : {}),
+        },
+      });
+
+      revalidatePath("/");
+      const parts = [`Done — tonight's dinner is now ${intent.mealName}.`];
+      if (cook) parts.push(`${cook.name}'s cooking.`);
+      if (dishes) parts.push(`${dishes.name}'s on dishes.`);
+      return parts.join(" ");
+    }
+
     case "list_jobs": {
       const jobs = await db.job.findMany({
         where: {
@@ -71,6 +113,41 @@ export async function executeIntent(intent: Intent, familyId: string, profileId:
       revalidatePath("/");
       revalidatePath("/jobs");
       return `Nice one — that's +${job.points} points.`;
+    }
+
+    case "add_job": {
+      if (!(await isAdminProfile(profileId))) return NOT_ADMIN_REPLY;
+
+      const assignee = intent.assigneeName ? await findProfileByName(familyId, intent.assigneeName) : null;
+      const points = intent.points ?? 5;
+
+      const job = await db.job.create({
+        data: { familyId, title: intent.title, points, assignedToId: assignee?.id, status: "open", dueDate: new Date() },
+      });
+
+      revalidatePath("/");
+      revalidatePath("/jobs");
+      return `Added "${job.title}" (+${points})${assignee ? ` for ${assignee.name}` : ""}.`;
+    }
+
+    case "remove_job": {
+      if (!(await isAdminProfile(profileId))) return NOT_ADMIN_REPLY;
+
+      const job = await db.job.findFirst({ where: { familyId, title: { contains: intent.title } } });
+      if (!job) return `I couldn't find a job called "${intent.title}".`;
+
+      if (job.status === "done" && job.assignedToId) {
+        const entry = await db.pointsLedger.findFirst({
+          where: { profileId: job.assignedToId, source: "job", note: job.title },
+          orderBy: { createdAt: "desc" },
+        });
+        if (entry) await db.pointsLedger.delete({ where: { id: entry.id } });
+      }
+      await db.job.delete({ where: { id: job.id } });
+
+      revalidatePath("/");
+      revalidatePath("/jobs");
+      return `Removed "${job.title}" from the jobs list.`;
     }
 
     case "get_tomorrow": {
@@ -99,13 +176,12 @@ export async function executeIntent(intent: Intent, familyId: string, profileId:
     }
 
     case "get_leaderboard": {
-      const profiles = await db.profile.findMany({ where: { familyId } });
-      const totals = await Promise.all(
-        profiles.map(async (p) => ({
-          name: p.name,
-          total: (await db.pointsLedger.aggregate({ where: { profileId: p.id }, _sum: { amount: true } }))._sum.amount ?? 0,
-        }))
-      );
+      const [profiles, grouped] = await Promise.all([
+        db.profile.findMany({ where: { familyId } }),
+        db.pointsLedger.groupBy({ by: ["profileId"], where: { profile: { familyId } }, _sum: { amount: true } }),
+      ]);
+      const pointsByProfile = new Map(grouped.map((g) => [g.profileId, g._sum.amount ?? 0]));
+      const totals = profiles.map((p) => ({ name: p.name, total: pointsByProfile.get(p.id) ?? 0 }));
       totals.sort((a, b) => b.total - a.total);
       const top = totals.slice(0, 3);
       return top.map((t, i) => `${i + 1}. ${t.name} — ${t.total}`).join("  ");

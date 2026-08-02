@@ -10,6 +10,7 @@ import { ProfileSwitcher } from "@/components/ProfileSwitcher";
 import { NavBar } from "@/components/NavBar";
 import { WeatherIcon } from "@/components/WeatherIcon";
 import { BonusPointsForm } from "@/components/BonusPointsForm";
+import Link from "next/link";
 
 // Every render here depends on live DB state and the per-request viewer
 // cookie — never statically pre-render (and never attempt to at build time,
@@ -100,7 +101,14 @@ export default async function HomePage() {
               {new Date().toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long" })}
             </p>
           </div>
-          <ProfileSwitcher profiles={family.profiles} viewerId={viewer.id} />
+          <div className="flex items-start gap-3">
+            {viewer.role === "parent" && (
+              <Link href="/settings" className="text-xs font-semibold pt-2.5" style={{ color: "var(--muted)" }} title="Settings">
+                Settings
+              </Link>
+            )}
+            <ProfileSwitcher profiles={family.profiles} viewerId={viewer.id} />
+          </div>
         </header>
 
         <div className="flex flex-col gap-3">

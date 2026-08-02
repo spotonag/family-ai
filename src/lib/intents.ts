@@ -14,8 +14,11 @@ export type Intent =
   | { type: "remove_shopping_item"; item: string }
   | { type: "list_shopping_items" }
   | { type: "get_dinner_plan" }
+  | { type: "set_dinner_plan"; mealName: string; cookName?: string; dishesName?: string }
   | { type: "list_jobs"; scope: "mine" | "all" }
   | { type: "complete_job"; title: string }
+  | { type: "add_job"; title: string; points?: number; assigneeName?: string }
+  | { type: "remove_job"; title: string }
   | { type: "get_tomorrow" }
   | { type: "find_event"; query: string }
   | { type: "get_leaderboard" }
@@ -31,7 +34,16 @@ const PATTERNS: Array<{ re: RegExp; build: (m: RegExpMatchArray) => Intent }> = 
   { re: /who'?s cooking(?: tonight)?\??$/i, build: () => ({ type: "get_dinner_plan" }) },
   { re: /who'?s on dishes\??$/i, build: () => ({ type: "get_dinner_plan" }) },
   { re: /what'?s for dinner\??$/i, build: () => ({ type: "get_dinner_plan" }) },
+  {
+    re: /(?:change dinner to|dinner(?: tonight)? is|set dinner to|we'?re having) (.+?)(?: for dinner)?\.?$/i,
+    build: (m) => ({ type: "set_dinner_plan", mealName: clean(m[1]) }),
+  },
   { re: /mark (.+?) (?:as )?done\.?$/i, build: (m) => ({ type: "complete_job", title: clean(m[1]) }) },
+  {
+    re: /add (?:a |the |another )?(?:new )?job(?: to)? (.+?)(?: for (\d+) points?)?\.?$/i,
+    build: (m) => ({ type: "add_job", title: clean(m[1]), points: m[2] ? Number(m[2]) : undefined }),
+  },
+  { re: /(?:remove|delete) (?:the )?job (.+?)\.?$/i, build: (m) => ({ type: "remove_job", title: clean(m[1]) }) },
   { re: /have i finished my jobs\??$/i, build: () => ({ type: "list_jobs", scope: "mine" }) },
   { re: /what jobs can i do\??$/i, build: () => ({ type: "list_jobs", scope: "mine" }) },
   { re: /what do i have (?:on )?tomorrow\??$/i, build: () => ({ type: "get_tomorrow" }) },

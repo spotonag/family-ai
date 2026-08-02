@@ -62,6 +62,8 @@ export default async function JobsPage() {
               done={false}
               assigneeInitial={job.assignedTo?.avatarInitial}
               assigneeColor={job.assignedTo?.avatarColor}
+              canDelete={viewer.role === "parent"}
+              actingProfileId={viewer.id}
             />
           ))}
         </section>
@@ -77,6 +79,8 @@ export default async function JobsPage() {
               done
               assigneeInitial={job.assignedTo?.avatarInitial}
               assigneeColor={job.assignedTo?.avatarColor}
+              canDelete={viewer.role === "parent"}
+              actingProfileId={viewer.id}
             />
           ))}
         </section>

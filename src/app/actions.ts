@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 import { VIEWER_COOKIE } from "@/lib/family";
-import { requireAdmin, verifyPin } from "@/lib/auth";
+import { requireAdmin, verifyPin, hashPin } from "@/lib/auth";
+
+const AVATAR_PALETTE = ["#4c8c5b", "#7d5aa6", "#3e7c8c", "#a3760f", "#c1585f", "#3a5a8c", "#8c6f3e", "#5a8c7d"];
 
 export async function switchViewer(profileId: string, pin?: string): Promise<{ ok: boolean; error?: string }> {
   const profile = await db.profile.findUnique({ where: { id: profileId } });
@@ -87,6 +89,62 @@ export async function addJob(formData: FormData) {
   await db.job.create({
     data: { familyId, title, assignedToId, points, status: "open", dueDate: new Date() },
   });
+
+  revalidatePath("/");
+  revalidatePath("/jobs");
+}
+
+export async function addFamilyMember(formData: FormData): Promise<{ ok: boolean; error?: string }> {
+  const actingProfileId = String(formData.get("actingProfileId") ?? "");
+  await requireAdmin(actingProfileId); // Parent/Admin only — Functional Spec Section 2
+
+  const familyId = String(formData.get("familyId") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const role = String(formData.get("role") ?? "child") === "parent" ? "parent" : "child";
+  const pin = String(formData.get("pin") ?? "").trim();
+
+  if (!name || !familyId) return { ok: false, error: "Name is required." };
+  if (role === "parent" && !/^\d{4}$/.test(pin)) {
+    return { ok: false, error: "Parent profiles need a 4-digit PIN." };
+  }
+
+  const existingCount = await db.profile.count({ where: { familyId } });
+  const avatarColor = AVATAR_PALETTE[existingCount % AVATAR_PALETTE.length];
+  const avatarInitial = name[0].toUpperCase();
+
+  const pinFields = role === "parent" ? hashPin(pin) : null;
+
+  await db.profile.create({
+    data: {
+      familyId,
+      name,
+      role,
+      avatarColor,
+      avatarInitial,
+      pinHash: pinFields?.hash,
+      pinSalt: pinFields?.salt,
+    },
+  });
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+export async function deleteJob(jobId: string, actingProfileId: string) {
+  await requireAdmin(actingProfileId); // Parent/Admin only — Functional Spec Section 2
+
+  const job = await db.job.findUnique({ where: { id: jobId } });
+  if (!job) return;
+
+  if (job.status === "done" && job.assignedToId) {
+    const entry = await db.pointsLedger.findFirst({
+      where: { profileId: job.assignedToId, source: "job", note: job.title },
+      orderBy: { createdAt: "desc" },
+    });
+    if (entry) await db.pointsLedger.delete({ where: { id: entry.id } });
+  }
+
+  await db.job.delete({ where: { id: jobId } });
 
   revalidatePath("/");
   revalidatePath("/jobs");

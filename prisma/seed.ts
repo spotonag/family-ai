@@ -3,6 +3,7 @@ import { hashPin } from "../src/lib/auth";
 
 const db = new PrismaClient();
 const KATHERINE_PIN = "1234"; // demo only — see README "Auth / roles"
+const STEVE_PIN = "5678";
 
 function startOfToday() {
   const d = new Date();
@@ -33,8 +34,9 @@ async function main() {
   });
 
   const katherinePin = hashPin(KATHERINE_PIN);
+  const stevePin = hashPin(STEVE_PIN);
 
-  const [katherine, victoria, anna, lucy, juliet] = await Promise.all([
+  const [katherine, steve, victoria, anna, lucy, juliet] = await Promise.all([
     db.profile.create({
       data: {
         familyId: family.id,
@@ -44,6 +46,17 @@ async function main() {
         avatarInitial: "K",
         pinHash: katherinePin.hash,
         pinSalt: katherinePin.salt,
+      },
+    }),
+    db.profile.create({
+      data: {
+        familyId: family.id,
+        name: "Steve",
+        role: "parent",
+        avatarColor: "#3a5a8c",
+        avatarInitial: "S",
+        pinHash: stevePin.hash,
+        pinSalt: stevePin.salt,
       },
     }),
     db.profile.create({ data: { familyId: family.id, name: "Victoria", role: "child", avatarColor: "#7d5aa6", avatarInitial: "V" } }),
@@ -130,8 +143,9 @@ async function main() {
     ],
   });
 
-  console.log(`Seeded family "${family.name}" (${family.id}) with 5 profiles.`);
+  console.log(`Seeded family "${family.name}" (${family.id}) with 6 profiles.`);
   console.log(`Katherine (parent) PIN: ${KATHERINE_PIN}`);
+  console.log(`Steve (parent) PIN: ${STEVE_PIN}`);
 }
 
 main()

@@ -32,6 +32,19 @@ const TOOLS: Tool[] = [
     input_schema: { type: "object", properties: {} },
   },
   {
+    name: "set_dinner_plan",
+    description: "Set or change tonight's dinner plan: the meal, and optionally who's cooking and who's on dishes. Parent/Admin only.",
+    input_schema: {
+      type: "object",
+      properties: {
+        mealName: { type: "string", description: "What's for dinner, e.g. 'Tacos'" },
+        cookName: { type: "string", description: "Who's cooking, if mentioned" },
+        dishesName: { type: "string", description: "Who's on dishes, if mentioned" },
+      },
+      required: ["mealName"],
+    },
+  },
+  {
     name: "list_jobs",
     description: "List open (not-yet-done) household jobs.",
     input_schema: {
@@ -43,6 +56,24 @@ const TOOLS: Tool[] = [
   {
     name: "complete_job",
     description: "Mark a job as done, by its title (fuzzy match), and award its points.",
+    input_schema: { type: "object", properties: { title: { type: "string" } }, required: ["title"] },
+  },
+  {
+    name: "add_job",
+    description: "Add a new household job/chore, with points and optionally who it's assigned to. Parent/Admin only.",
+    input_schema: {
+      type: "object",
+      properties: {
+        title: { type: "string" },
+        points: { type: "number", description: "Points awarded on completion, defaults to 5 if not mentioned" },
+        assigneeName: { type: "string", description: "Who it's assigned to, if mentioned" },
+      },
+      required: ["title"],
+    },
+  },
+  {
+    name: "remove_job",
+    description: "Remove/delete a job entirely, by its title (fuzzy match). Parent/Admin only.",
     input_schema: { type: "object", properties: { title: { type: "string" } }, required: ["title"] },
   },
   {
@@ -73,10 +104,26 @@ function toolCallToIntent(block: ToolUseBlock): Intent {
       return { type: "list_shopping_items" };
     case "get_dinner_plan":
       return { type: "get_dinner_plan" };
+    case "set_dinner_plan":
+      return {
+        type: "set_dinner_plan",
+        mealName: String(input.mealName ?? ""),
+        cookName: input.cookName ? String(input.cookName) : undefined,
+        dishesName: input.dishesName ? String(input.dishesName) : undefined,
+      };
     case "list_jobs":
       return { type: "list_jobs", scope: input.scope === "mine" ? "mine" : "all" };
     case "complete_job":
       return { type: "complete_job", title: String(input.title ?? "") };
+    case "add_job":
+      return {
+        type: "add_job",
+        title: String(input.title ?? ""),
+        points: input.points !== undefined ? Number(input.points) : undefined,
+        assigneeName: input.assigneeName ? String(input.assigneeName) : undefined,
+      };
+    case "remove_job":
+      return { type: "remove_job", title: String(input.title ?? "") };
     case "get_tomorrow":
       return { type: "get_tomorrow" };
     case "find_event":
@@ -93,11 +140,12 @@ export async function llmReply(
   familyId: string,
   profileId: string,
   viewerName: string,
+  viewerIsAdmin: boolean,
   familyMemberNames: string[]
 ): Promise<string> {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-  const system = `You are the Family AI assistant — a warm, concise household helper speaking to ${viewerName}, one of the members of this family (the others are: ${familyMemberNames.join(", ")}).
+  const system = `You are the Family AI assistant — a warm, concise household helper speaking to ${viewerName}, one of the members of this family (the others are: ${familyMemberNames.join(", ")}). ${viewerName} is ${viewerIsAdmin ? "a parent/admin, so they can use any tool, including changing the dinner plan and adding or removing jobs." : "a child, not a parent/admin — if they ask to change the dinner plan or add/remove a job, tell them briefly that a parent needs to do that rather than attempting it."}
 
 Answer naturally and briefly, the way you'd speak out loud — a sentence or two, not a report. For anything about jobs, the shopping list, dinner, the calendar, or points, always use a tool rather than guessing — the data changes constantly and you don't have it memorised. If a request is ambiguous (e.g. which of two similar items to remove, which job someone means), ask a short clarifying question instead of guessing. If someone asks something with no relevant tool (general chat, a question about the app itself), just answer directly and briefly.`;
 
