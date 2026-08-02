@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+const canSpeak = typeof window !== "undefined" && "speechSynthesis" in window;
 
 export function AudioButton({
   idleLabel,
@@ -14,11 +16,34 @@ export function AudioButton({
   gold?: boolean;
 }) {
   const [state, setState] = useState<"idle" | "playing" | "played">("idle");
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+
+  // Stop talking if the user navigates away mid-sentence.
+  useEffect(() => {
+    return () => {
+      if (canSpeak) window.speechSynthesis.cancel();
+    };
+  }, []);
 
   function press() {
     if (state === "playing") return;
-    setState("playing");
-    setTimeout(() => setState("played"), 1200);
+
+    if (!canSpeak) {
+      // No speech synthesis available (unsupported browser) — fall back to
+      // just revealing the transcript text after a beat.
+      setState("playing");
+      setTimeout(() => setState("played"), 1200);
+      return;
+    }
+
+    window.speechSynthesis.cancel(); // clear anything queued/stuck
+    const utterance = new SpeechSynthesisUtterance(transcript);
+    utterance.rate = 0.98;
+    utterance.onstart = () => setState("playing");
+    utterance.onend = () => setState("played");
+    utterance.onerror = () => setState("played");
+    utteranceRef.current = utterance;
+    window.speechSynthesis.speak(utterance);
   }
 
   const label = state === "idle" ? idleLabel : state === "playing" ? "Playing…" : replayLabel;
