@@ -8,8 +8,15 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Used only by `prisma migrate`/`db push`, never by the running app.
+  // Supabase's transaction-mode pooler (port 6543, DATABASE_URL) doesn't
+  // support the session-level behaviour schema changes need — it hangs
+  // rather than erroring. DIRECT_URL points at the same pooler host on
+  // port 5432 (session mode) instead, which does support DDL. See
+  // README.md "Schema changes after go-live" and prisma/supabase/README.md.
+  directUrl = env("DIRECT_URL")
 }
 
 model Family {

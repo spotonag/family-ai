@@ -47,6 +47,29 @@ connection from the pool` once enough of them stack up, which in turn took
 the whole server down. `connection_limit=5` (or just omitting it, and
 letting Prisma pick a default) is the right call here.
 
+## Important: `db push`/`migrate` need a second connection string — `DIRECT_URL`
+
+Schema-change commands (`prisma db push`, `prisma migrate dev/deploy`) sent
+through the transaction-mode pooler (port 6543, the one `DATABASE_URL`
+uses) don't just fail — they **hang indefinitely** with no error at all,
+because DDL needs session-level connection behaviour that transaction
+pooling doesn't provide. `schema.prisma` declares a `directUrl` for exactly
+this: same pooler host, but **port 5432** (session mode) instead of 6543,
+and no `?pgbouncer=true`:
+
+```
+DATABASE_URL="postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=5"
+DIRECT_URL="postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres"
+```
+
+Both need to be set wherever schema-change commands run (Render's
+Environment tab, local `.env`, CI). The running app only ever uses
+`DATABASE_URL` — `prisma generate` and `next build` work fine without
+`DIRECT_URL` being set at all, it's only `db push`/`migrate` that need it.
+If a `db push` in Render's Shell just sits there with no output after
+"Datasource... at ...pooler.supabase.com:6543", this is why — add
+`DIRECT_URL` and try again.
+
 ## Applying it
 
 **Option A — Supabase SQL Editor (easiest, no local setup):**
@@ -60,12 +83,12 @@ contents of `001_init.sql`, run it. Done — tables exist.
 # to:
 #   datasource db { provider = "postgresql" ... }
 
-# in .env, uncomment the Supabase DATABASE_URL (pooler line is more portable
-# than the direct connection, which is IPv6-only)
+# in .env, uncomment the Supabase DATABASE_URL and DIRECT_URL (pooler line
+# is more portable than the direct connection, which is IPv6-only)
 
 npx prisma db push   # creates every table directly from schema.prisma — no
                       # migration history needed, equivalent to running
-                      # 001_init.sql by hand
+                      # 001_init.sql by hand. Uses DIRECT_URL automatically.
 npm run db:seed      # load demo data
 npm run dev          # now pointed at Supabase
 ```

@@ -214,8 +214,9 @@ a changed relation) needs to actually reach Supabase, not just get
 committed here. There's no formal migration history for the Postgres side
 (no live connection to generate one from this sandbox — see
 `prisma/supabase/README.md`), so the workflow is: commit the
-`schema.prisma` change, then from **Render's Shell** (Environment tab has
-the right `DATABASE_URL` already configured) run:
+`schema.prisma` change, make sure Render's Environment tab has a
+**`DIRECT_URL`** variable set (see below — separate from `DATABASE_URL`,
+required for this to work at all), then from **Render's Shell** run:
 
 ```bash
 npx prisma db push --accept-data-loss
@@ -223,11 +224,22 @@ npx prisma db push --accept-data-loss
 
 `--accept-data-loss` skips the interactive confirmation prompt, which the
 Shell can't answer anyway — read what it would have warned about first if
-you're unsure (Render's Shell runs `db push` without it fine, it just
-pauses for input `db push` alone would need). This applies the new schema
-directly, preserving existing rows for anything that wasn't
-restructured — a genuinely dropped/renamed column loses that column's
-data, same as it would for any Postgres `ALTER TABLE`.
+you're unsure. This applies the new schema directly, preserving existing
+rows for anything that wasn't restructured — a genuinely dropped/renamed
+column loses that column's data, same as it would for any Postgres
+`ALTER TABLE`.
+
+**Why `DIRECT_URL` matters**: `db push` through the transaction-mode
+pooler (port 6543, what `DATABASE_URL` uses) doesn't fail — it **hangs
+forever with no output**, because schema changes need session-level
+connection behaviour that transaction pooling doesn't support. `DIRECT_URL`
+is the same pooler host on **port 5432** (session mode) instead, no
+`?pgbouncer=true`. Add it in Render's Environment tab:
+```
+DIRECT_URL=postgresql://postgres.rhlhzsmzpzpnaqhiukgh:<password>@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres
+```
+The running app never uses this, only `db push`/`migrate` do — full detail
+in `prisma/supabase/README.md`.
 
 ## Known gaps vs. the Functional Spec
 
