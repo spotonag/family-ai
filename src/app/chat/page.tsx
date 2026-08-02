@@ -5,6 +5,8 @@ import { NavBar } from "@/components/NavBar";
 import { ProfileSwitcher } from "@/components/ProfileSwitcher";
 import Link from "next/link";
 
+export const dynamic = "force-dynamic";
+
 export default async function ChatPage() {
   const family = await getFamily();
   const viewerId = await getViewerId();

@@ -11,6 +11,11 @@ import { NavBar } from "@/components/NavBar";
 import { WeatherIcon } from "@/components/WeatherIcon";
 import { BonusPointsForm } from "@/components/BonusPointsForm";
 
+// Every render here depends on live DB state and the per-request viewer
+// cookie — never statically pre-render (and never attempt to at build time,
+// when the database may not have any seed data yet).
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   const family = await getFamily();
   const viewerId = await getViewerId();
