@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { startOfToday, endOfToday } from "@/lib/family";
+import { FAMILY_TIMEZONE } from "@/lib/timezone";
 import type { Intent } from "@/lib/intents";
 
 async function isAdminProfile(profileId: string): Promise<boolean> {
@@ -164,7 +165,7 @@ export async function executeIntent(intent: Intent, familyId: string, profileId:
       return events
         .map((e) => {
           const who = e.attendees.length ? ` (${e.attendees.map((a) => a.name).join(", ")})` : "";
-          return `${e.title}${who} at ${e.startTime.toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" })}`;
+          return `${e.title}${who} at ${e.startTime.toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit", timeZone: FAMILY_TIMEZONE })}`;
         })
         .join(", ");
     }
@@ -175,7 +176,7 @@ export async function executeIntent(intent: Intent, familyId: string, profileId:
         orderBy: { startTime: "asc" },
       });
       if (!event) return `I couldn't find anything called "${intent.query}" coming up.`;
-      return `${event.title} is at ${event.startTime.toLocaleDateString("en-AU", { weekday: "long" })}, ${event.startTime.toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" })}.`;
+      return `${event.title} is at ${event.startTime.toLocaleDateString("en-AU", { weekday: "long", timeZone: FAMILY_TIMEZONE })}, ${event.startTime.toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit", timeZone: FAMILY_TIMEZONE })}.`;
     }
 
     case "get_leaderboard": {

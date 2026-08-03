@@ -11,6 +11,7 @@ import { NavBar } from "@/components/NavBar";
 import { WeatherIcon } from "@/components/WeatherIcon";
 import { BonusPointsForm } from "@/components/BonusPointsForm";
 import { DinnerPlanForm } from "@/components/DinnerPlanForm";
+import { FAMILY_TIMEZONE } from "@/lib/timezone";
 import Link from "next/link";
 
 // Every render here depends on live DB state and the per-request viewer
@@ -76,7 +77,7 @@ export default async function HomePage() {
       ? `There ${openJobs.length === 1 ? "is" : "are"} ${openJobs.length} family job${openJobs.length === 1 ? "" : "s"} still outstanding.`
       : "All family jobs are done.",
     tomorrowEvent
-      ? `${tomorrowEvent.attendees.length ? tomorrowEvent.attendees.map((a) => a.name).join(" and ") : "The family"} ${tomorrowEvent.attendees.length === 1 ? "has" : "have"} ${tomorrowEvent.title} tomorrow at ${tomorrowEvent.startTime.toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" })}.`
+      ? `${tomorrowEvent.attendees.length ? tomorrowEvent.attendees.map((a) => a.name).join(" and ") : "The family"} ${tomorrowEvent.attendees.length === 1 ? "has" : "have"} ${tomorrowEvent.title} tomorrow at ${tomorrowEvent.startTime.toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit", timeZone: FAMILY_TIMEZONE })}.`
       : null,
     shoppingItems.length > 0
       ? `There ${shoppingItems.length === 1 ? "is" : "are"} ${shoppingItems.length} item${shoppingItems.length === 1 ? "" : "s"} on the shopping list.`
@@ -296,7 +297,7 @@ export default async function HomePage() {
             {tomorrowEvent ? (
               <div className="job-row" style={{ borderTop: "none", paddingTop: 0 }}>
                 <div className="text-xs font-bold tabular-nums w-12 flex-shrink-0" style={{ color: "var(--accent)" }}>
-                  {tomorrowEvent.startTime.toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" })}
+                  {tomorrowEvent.startTime.toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit", timeZone: FAMILY_TIMEZONE })}
                 </div>
                 <div>
                   <div className="text-sm font-semibold">

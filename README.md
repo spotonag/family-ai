@@ -96,6 +96,34 @@ Important caveats, worth knowing before relying on this:
   `src/lib/weather.ts` — resolve a new one by hitting
   `https://api.weather.bom.gov.au/v1/locations?search=<town name>`.
 
+## Dates, times & timezones
+
+Calendar events are the one place in the app where a specific time of day
+actually matters (jobs and dinner plans only care about which calendar day,
+not the hour). That created a real bug early on: Render's server runs in
+UTC, and a naive `new Date(str)` on a `datetime-local` input string
+interprets it in *whatever timezone the code executing it is running in* —
+the server's, not the family's — so an event typed in as "3:30 pm" was
+silently saved roughly ten hours off (and landed on the wrong day entirely
+for anything typed in the morning or evening).
+
+`src/lib/timezone.ts` fixes this properly rather than papering over it:
+`wallTimeToUtc()` converts a picked date/time into the correct UTC instant
+for `FAMILY_TIMEZONE` (`Australia/Sydney` — same AEST/AEDT rules as Boort,
+VIC) regardless of what timezone the server happens to be running in, and
+`utcToWallTimeLocal()` does the reverse for pre-filling the edit form. Every
+place a calendar event's time is displayed (`CalendarEventRow`,
+`intentExecutor.ts`'s "what's tomorrow" replies, the Home screen's
+"Tomorrow" card and spoken Briefing) passes `timeZone: FAMILY_TIMEZONE`
+explicitly for the same reason — so the display side can't drift from the
+storage side even if Render's runtime timezone ever changes.
+
+**Calendar events can now be edited.** The pencil icon on each row
+(`src/components/CalendarEventRow.tsx`) opens the same title/time/category/
+attendees fields in place, pre-filled with the current values, via a new
+`updateCalendarEvent` server action — for when a time changes after it was
+first put in, rather than deleting and re-adding.
+
 ## AI chat
 
 Add your Anthropic API key to `.env` (copy `.env.example`, uncomment

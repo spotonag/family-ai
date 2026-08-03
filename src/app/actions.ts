@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 import { VIEWER_COOKIE, startOfDate } from "@/lib/family";
 import { requireAdmin, verifyPin, hashPin } from "@/lib/auth";
+import { wallTimeToUtc } from "@/lib/timezone";
 
 const AVATAR_PALETTE = ["#4c8c5b", "#7d5aa6", "#3e7c8c", "#a3760f", "#c1585f", "#3a5a8c", "#8c6f3e", "#5a8c7d"];
 
@@ -222,7 +223,7 @@ export async function addCalendarEvent(formData: FormData) {
   const attendeeIds = formData.getAll("attendeeIds").map(String).filter(Boolean);
 
   if (!familyId || !title || !startTimeRaw) return;
-  const startTime = new Date(startTimeRaw);
+  const startTime = wallTimeToUtc(startTimeRaw);
   if (Number.isNaN(startTime.getTime())) return;
 
   await db.calendarEvent.create({
@@ -232,6 +233,31 @@ export async function addCalendarEvent(formData: FormData) {
       startTime,
       category,
       attendees: attendeeIds.length ? { connect: attendeeIds.map((id) => ({ id })) } : undefined,
+    },
+  });
+
+  revalidatePath("/");
+  revalidatePath("/calendar");
+}
+
+export async function updateCalendarEvent(formData: FormData) {
+  const eventId = String(formData.get("eventId") ?? "");
+  const title = String(formData.get("title") ?? "").trim();
+  const startTimeRaw = String(formData.get("startTime") ?? "");
+  const category = String(formData.get("category") ?? "other");
+  const attendeeIds = formData.getAll("attendeeIds").map(String).filter(Boolean);
+
+  if (!eventId || !title || !startTimeRaw) return;
+  const startTime = wallTimeToUtc(startTimeRaw);
+  if (Number.isNaN(startTime.getTime())) return;
+
+  await db.calendarEvent.update({
+    where: { id: eventId },
+    data: {
+      title,
+      startTime,
+      category,
+      attendees: { set: attendeeIds.map((id) => ({ id })) },
     },
   });
 

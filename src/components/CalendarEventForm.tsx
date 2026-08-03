@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { addCalendarEvent } from "@/app/actions";
+import { AttendeePicker } from "@/components/AttendeePicker";
 
 type Profile = { id: string; name: string; avatarColor: string; avatarInitial: string };
 
@@ -74,28 +75,7 @@ export function CalendarEventForm({ familyId, profiles }: { familyId: string; pr
         <p className="text-[11px] font-semibold mb-1.5" style={{ color: "var(--muted)" }}>
           Who's this for? (pick as many as you want, or none for the whole family)
         </p>
-        <div className="flex flex-wrap gap-2">
-          {profiles.map((p) => {
-            const on = selected.has(p.id);
-            return (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => toggle(p.id)}
-                className="avatar sm"
-                title={p.name}
-                style={{
-                  background: p.avatarColor,
-                  outline: on ? "2.5px solid var(--ink)" : "2.5px solid transparent",
-                  outlineOffset: 1,
-                  opacity: on ? 1 : 0.55,
-                }}
-              >
-                {p.avatarInitial}
-              </button>
-            );
-          })}
-        </div>
+        <AttendeePicker profiles={profiles} selected={selected} onToggle={toggle} />
       </div>
 
       <button

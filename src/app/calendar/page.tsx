@@ -52,6 +52,7 @@ export default async function CalendarPage() {
               category={event.category}
               startTime={event.startTime}
               attendees={event.attendees}
+              profiles={family.profiles}
             />
           ))}
         </section>
