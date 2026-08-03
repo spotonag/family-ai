@@ -63,3 +63,29 @@ export function utcToWallTimeLocal(date: Date, timeZone: string = FAMILY_TIMEZON
   const p = partsOf(date, timeZone);
   return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
 }
+
+function ordinal(n: number): string {
+  const rem100 = n % 100;
+  if (rem100 >= 11 && rem100 <= 13) return `${n}th`;
+  switch (n % 10) {
+    case 1:
+      return `${n}st`;
+    case 2:
+      return `${n}nd`;
+    case 3:
+      return `${n}rd`;
+    default:
+      return `${n}th`;
+  }
+}
+
+// "Monday, the 4th of August" — used anywhere a date is spoken aloud (the
+// Briefing cards) as well as shown in the header, since a bare day number
+// ("Monday 4 August") reads TTS engines as the cardinal "four" instead of
+// the ordinal "fourth" a person would actually say.
+export function spokenDateLabel(date: Date, timeZone: string = FAMILY_TIMEZONE): string {
+  const weekday = date.toLocaleDateString("en-AU", { weekday: "long", timeZone });
+  const month = date.toLocaleDateString("en-AU", { month: "long", timeZone });
+  const day = Number(date.toLocaleDateString("en-AU", { day: "numeric", timeZone }));
+  return `${weekday}, the ${ordinal(day)} of ${month}`;
+}

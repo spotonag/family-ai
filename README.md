@@ -191,6 +191,18 @@ it works, just with a different voice.
 speaker chip at the top of the chat window ("Emma talks back: On/Off")
 lets each family member turn her spoken replies on or off, remembered per
 device (`localStorage`, not shared across the family). It defaults to on.
+
+**Reads numbers and units the way a person would say them, not the way
+they're written.** `speak()` normalizes text before sending it to either
+voice — expanding "km/h" to "kilometres per hour" and "°C" to "degrees" —
+without touching the on-screen transcript, which keeps those abbreviations
+since they're perfectly normal to read with your eyes. Dates get the same
+treatment further upstream: `spokenDateLabel()` in `src/lib/timezone.ts`
+builds "Monday, the 4th of August" instead of a bare "Monday 4 August",
+since a TTS engine reads a lone day number as the cardinal "four" rather
+than the ordinal "fourth" a person would actually say. Add more
+abbreviation expansions to `normalizeForSpeech()` in `src/lib/speak.ts` if
+another one turns up sounding wrong.
 Combined with the mic button below, this makes the whole chat usable
 hands-free — say something, Emma answers out loud.
 

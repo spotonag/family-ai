@@ -11,7 +11,7 @@ import { NavBar } from "@/components/NavBar";
 import { WeatherIcon } from "@/components/WeatherIcon";
 import { BonusPointsForm } from "@/components/BonusPointsForm";
 import { DinnerPlanForm } from "@/components/DinnerPlanForm";
-import { FAMILY_TIMEZONE } from "@/lib/timezone";
+import { FAMILY_TIMEZONE, spokenDateLabel } from "@/lib/timezone";
 import Link from "next/link";
 
 // Every render here depends on live DB state and the per-request viewer
@@ -95,7 +95,7 @@ export default async function HomePage() {
 
   const doneCount = jobs.filter((j) => j.status === "done").length;
   const openJobs = jobs.filter((j) => j.status !== "done");
-  const todayLabel = new Date().toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long" });
+  const todayLabel = spokenDateLabel(new Date(), FAMILY_TIMEZONE);
 
   const briefing = [
     `Good afternoon, ${todayLabel}. ${weather?.summary ?? "The weather update isn't available right now."}`,
@@ -116,7 +116,7 @@ export default async function HomePage() {
     .filter(Boolean)
     .join(" ");
 
-  const tomorrowLabel = tomorrowStart.toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long" });
+  const tomorrowLabel = spokenDateLabel(tomorrowStart, FAMILY_TIMEZONE);
 
   const tomorrowBriefing = [
     `Here's tomorrow, ${tomorrowLabel}. ${weather?.tomorrow?.summary ?? "Tomorrow's forecast isn't available right now."}`,

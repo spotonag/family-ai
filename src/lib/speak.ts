@@ -15,8 +15,22 @@ export function stopSpeaking() {
   currentAudio = null;
 }
 
-export async function speak(text: string): Promise<void> {
+// Expands abbreviations that read badly out loud (both ElevenLabs and the
+// browser's own voice say "km slash h" or skip the degree symbol entirely)
+// into the words a person would actually say. Only affects what gets
+// *spoken* — the on-screen transcript text is untouched, since "km/h" and
+// "°C" are perfectly normal to read with your eyes.
+function normalizeForSpeech(text: string): string {
+  return text
+    .replace(/°C/gi, " degrees")
+    .replace(/\bkm\/h\b/gi, "kilometres per hour")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+export async function speak(rawText: string): Promise<void> {
   stopSpeaking();
+  const text = normalizeForSpeech(rawText);
 
   try {
     const res = await fetch("/api/tts", {
