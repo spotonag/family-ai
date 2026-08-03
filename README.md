@@ -95,6 +95,22 @@ Important caveats, worth knowing before relying on this:
 - To point this at a different town, change `FORECAST_GEOHASH` in
   `src/lib/weather.ts` — resolve a new one by hitting
   `https://api.weather.bom.gov.au/v1/locations?search=<town name>`.
+- **Tomorrow's forecast** comes from the same daily-forecast API call as
+  today's (`daily.data[1]` instead of `[0]`) — no second request — and is
+  cached in its own `WeatherCache` row (`id: "boort_tomorrow"`) alongside
+  today's, refreshed on the same 15-minute cycle. It only carries a
+  max/min/rain-chance/summary, since a future day never has a live
+  observation the way "right now" does.
+
+## Today's & Tomorrow's Briefing
+
+Two spoken cards on Home, both built the same way: a plain-text summary
+assembled server-side in `src/app/page.tsx` from that day's weather, dinner
+plan, jobs, and calendar events, then handed to the same `AudioButton` (see
+"Voice" below) that reads it aloud. Tomorrow's version pulls tomorrow's rows
+for each of those instead of today's — including every calendar event due
+that day (not just the next upcoming one, which is what the smaller
+"Tomorrow" card further down still shows for an at-a-glance view).
 
 ## Dates, times & timezones
 

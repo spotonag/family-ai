@@ -26,11 +26,27 @@ export default async function HomePage() {
 
   const tomorrowStart = new Date(startOfToday());
   tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+  const tomorrowEnd = new Date(tomorrowStart);
+  tomorrowEnd.setHours(23, 59, 59, 999);
 
   const weekAhead = new Date(startOfToday());
   weekAhead.setDate(weekAhead.getDate() + 6);
 
-  const [jobs, dinner, upcomingDinners, shoppingItems, quiz, feedPost, tomorrowEvent, leaderboard, wrapUp, weather] = await Promise.all([
+  const [
+    jobs,
+    dinner,
+    upcomingDinners,
+    shoppingItems,
+    quiz,
+    feedPost,
+    tomorrowEvent,
+    tomorrowDinner,
+    tomorrowJobs,
+    tomorrowEvents,
+    leaderboard,
+    wrapUp,
+    weather,
+  ] = await Promise.all([
     db.job.findMany({
       where: { familyId: family.id, dueDate: { gte: startOfToday(), lte: endOfToday() } },
       include: { assignedTo: true },
@@ -59,6 +75,19 @@ export default async function HomePage() {
       include: { attendees: true },
       orderBy: { startTime: "asc" },
     }),
+    db.dinnerPlan.findFirst({
+      where: { familyId: family.id, date: { gte: tomorrowStart, lte: tomorrowEnd } },
+      include: { cook: true, dishes: true },
+    }),
+    db.job.findMany({
+      where: { familyId: family.id, dueDate: { gte: tomorrowStart, lte: tomorrowEnd } },
+      include: { assignedTo: true },
+    }),
+    db.calendarEvent.findMany({
+      where: { familyId: family.id, startTime: { gte: tomorrowStart, lte: tomorrowEnd } },
+      include: { attendees: true },
+      orderBy: { startTime: "asc" },
+    }),
     getLeaderboard(family.id),
     getWeeklyWrapUp(family.id),
     getBoortWeather(),
@@ -83,6 +112,28 @@ export default async function HomePage() {
       ? `There ${shoppingItems.length === 1 ? "is" : "are"} ${shoppingItems.length} item${shoppingItems.length === 1 ? "" : "s"} on the shopping list.`
       : "The shopping list is empty.",
     quiz ? "Today's quiz is ready." : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const tomorrowLabel = tomorrowStart.toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long" });
+
+  const tomorrowBriefing = [
+    `Here's tomorrow, ${tomorrowLabel}. ${weather?.tomorrow?.summary ?? "Tomorrow's forecast isn't available right now."}`,
+    tomorrowDinner
+      ? `${tomorrowDinner.cook?.name ?? "Someone"} is cooking dinner${tomorrowDinner.dishes ? `, ${tomorrowDinner.dishes.name} is on dishes` : ""}.`
+      : "No dinner planned yet.",
+    tomorrowJobs.length > 0
+      ? `There ${tomorrowJobs.length === 1 ? "is" : "are"} ${tomorrowJobs.length} job${tomorrowJobs.length === 1 ? "" : "s"} due.`
+      : "No jobs due.",
+    tomorrowEvents.length > 0
+      ? tomorrowEvents
+          .map(
+            (e) =>
+              `${e.title}${e.attendees.length ? ` for ${e.attendees.map((a) => a.name).join(" and ")}` : ""} at ${e.startTime.toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit", timeZone: FAMILY_TIMEZONE })}`
+          )
+          .join(", ") + "."
+      : "Nothing on the calendar.",
   ]
     .filter(Boolean)
     .join(" ");
@@ -155,6 +206,11 @@ export default async function HomePage() {
           <section className="card">
             <p className="card-title">Today&rsquo;s Briefing</p>
             <AudioButton idleLabel="Today's Briefing" replayLabel="Replay Today's Briefing" transcript={briefing} />
+          </section>
+
+          <section className="card">
+            <p className="card-title">Tomorrow&rsquo;s Briefing</p>
+            <AudioButton idleLabel="Tomorrow's Briefing" replayLabel="Replay Tomorrow's Briefing" transcript={tomorrowBriefing} />
           </section>
 
           <section className="card">
