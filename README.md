@@ -309,6 +309,6 @@ is:
 - `/settings` covers adding a family member (Section 5.8) but not editing
   or removing one, and there's no way to change a PIN after creation short
   of a code-level operation.
-- No dedicated UI for editing the dinner roster beyond asking the AI to
-  change it — same for jobs, which can be added/removed via chat or the
-  Jobs page, but there's no bulk/recurring job editor.
+- Jobs and dinner plans can be scheduled for any date (not just today) from
+  their own forms now, but there's still no bulk/recurring editor — each
+  one is entered individually.

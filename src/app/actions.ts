@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { db } from "@/lib/db";
-import { VIEWER_COOKIE } from "@/lib/family";
+import { VIEWER_COOKIE, startOfDate } from "@/lib/family";
 import { requireAdmin, verifyPin, hashPin } from "@/lib/auth";
 
 const AVATAR_PALETTE = ["#4c8c5b", "#7d5aa6", "#3e7c8c", "#a3760f", "#c1585f", "#3a5a8c", "#8c6f3e", "#5a8c7d"];
@@ -84,10 +84,13 @@ export async function addJob(formData: FormData) {
   const familyId = String(formData.get("familyId") ?? "");
   const assignedToId = String(formData.get("assignedToId") ?? "") || null;
   const points = Number(formData.get("points") ?? 5) || 5;
+  const dueDateRaw = String(formData.get("dueDate") ?? "");
   if (!title || !familyId) return;
 
+  const dueDate = dueDateRaw ? startOfDate(dueDateRaw) : new Date();
+
   await db.job.create({
-    data: { familyId, title, assignedToId, points, status: "open", dueDate: new Date() },
+    data: { familyId, title, assignedToId, points, status: "open", dueDate: Number.isNaN(dueDate.getTime()) ? new Date() : dueDate },
   });
 
   revalidatePath("/");
@@ -183,6 +186,29 @@ export async function adjustPoints(formData: FormData) {
   // any other change, which keeps a full audit trail of every adjustment.
   await db.pointsLedger.create({
     data: { profileId: targetProfileId, source: "bonus", amount, note },
+  });
+
+  revalidatePath("/");
+}
+
+export async function setDinnerPlan(formData: FormData) {
+  const actingProfileId = String(formData.get("actingProfileId") ?? "");
+  await requireAdmin(actingProfileId); // Parent/Admin only — Functional Spec Section 2
+
+  const familyId = String(formData.get("familyId") ?? "");
+  const dateRaw = String(formData.get("date") ?? "");
+  const mealName = String(formData.get("mealName") ?? "").trim();
+  const cookId = String(formData.get("cookId") ?? "") || null;
+  const dishesId = String(formData.get("dishesId") ?? "") || null;
+  if (!familyId || !dateRaw || !mealName) return;
+
+  const date = startOfDate(dateRaw);
+  if (Number.isNaN(date.getTime())) return;
+
+  await db.dinnerPlan.upsert({
+    where: { familyId_date: { familyId, date } },
+    create: { familyId, date, mealName, cookId, dishesId },
+    update: { mealName, cookId, dishesId },
   });
 
   revalidatePath("/");

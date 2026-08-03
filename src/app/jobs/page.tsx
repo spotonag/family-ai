@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { getFamily, getViewerId, pickViewer } from "@/lib/family";
+import { getFamily, getViewerId, pickViewer, startOfToday, endOfToday } from "@/lib/family";
 import { JobItem } from "@/components/JobItem";
 import { JobForm } from "@/components/JobForm";
 import { NavBar } from "@/components/NavBar";
@@ -7,6 +7,13 @@ import { ProfileSwitcher } from "@/components/ProfileSwitcher";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
+
+// Jobs due today show no date chip at all — only ones due on another day
+// need the reminder, so the common case (today's jobs) stays uncluttered.
+function dueDateLabel(dueDate: Date): string | undefined {
+  if (dueDate >= startOfToday() && dueDate <= endOfToday()) return undefined;
+  return dueDate.toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" });
+}
 
 export default async function JobsPage() {
   const family = await getFamily();
@@ -16,7 +23,7 @@ export default async function JobsPage() {
   const jobs = await db.job.findMany({
     where: { familyId: family.id },
     include: { assignedTo: true },
-    orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+    orderBy: [{ status: "asc" }, { dueDate: "asc" }],
   });
 
   const open = jobs.filter((j) => j.status !== "done");
@@ -64,6 +71,7 @@ export default async function JobsPage() {
               assigneeColor={job.assignedTo?.avatarColor}
               canDelete={viewer.role === "parent"}
               actingProfileId={viewer.id}
+              dueDateLabel={dueDateLabel(job.dueDate)}
             />
           ))}
         </section>
@@ -81,6 +89,7 @@ export default async function JobsPage() {
               assigneeColor={job.assignedTo?.avatarColor}
               canDelete={viewer.role === "parent"}
               actingProfileId={viewer.id}
+              dueDateLabel={dueDateLabel(job.dueDate)}
             />
           ))}
         </section>

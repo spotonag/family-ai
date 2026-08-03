@@ -43,6 +43,14 @@ export function endOfToday() {
   return d;
 }
 
+// Turns a `<input type="date">` value ("YYYY-MM-DD") into that day's local
+// midnight — the same convention startOfToday() uses, so a value picked
+// for "today" round-trips to an identical Date and matching date-range
+// queries keep working.
+export function startOfDate(dateStr: string): Date {
+  return new Date(`${dateStr}T00:00:00`);
+}
+
 export function startOfWeek() {
   const d = startOfToday();
   const day = d.getDay(); // 0 = Sunday

@@ -12,6 +12,7 @@ export function JobItem({
   assigneeColor,
   canDelete = false,
   actingProfileId,
+  dueDateLabel,
 }: {
   id: string;
   title: string;
@@ -21,6 +22,8 @@ export function JobItem({
   assigneeColor?: string;
   canDelete?: boolean;
   actingProfileId?: string;
+  // Only passed when the job is due on a day other than today — e.g. "Sat 8 Aug".
+  dueDateLabel?: string;
 }) {
   const [pending, startTransition] = useTransition();
 
@@ -40,6 +43,11 @@ export function JobItem({
       <div className={`job-label ${done ? "done" : ""}`} style={{ flex: 1, fontSize: 14, fontWeight: 650 }}>
         {title}
       </div>
+      {dueDateLabel && (
+        <span className="chip" style={{ fontSize: 10.5, flexShrink: 0 }}>
+          {dueDateLabel}
+        </span>
+      )}
       {assigneeInitial && (
         <div className="avatar sm" style={{ background: assigneeColor }}>
           {assigneeInitial}

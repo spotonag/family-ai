@@ -10,6 +10,7 @@ import { ProfileSwitcher } from "@/components/ProfileSwitcher";
 import { NavBar } from "@/components/NavBar";
 import { WeatherIcon } from "@/components/WeatherIcon";
 import { BonusPointsForm } from "@/components/BonusPointsForm";
+import { DinnerPlanForm } from "@/components/DinnerPlanForm";
 import Link from "next/link";
 
 // Every render here depends on live DB state and the per-request viewer
@@ -25,7 +26,10 @@ export default async function HomePage() {
   const tomorrowStart = new Date(startOfToday());
   tomorrowStart.setDate(tomorrowStart.getDate() + 1);
 
-  const [jobs, dinner, shoppingItems, quiz, feedPost, tomorrowEvent, leaderboard, wrapUp, weather] = await Promise.all([
+  const weekAhead = new Date(startOfToday());
+  weekAhead.setDate(weekAhead.getDate() + 6);
+
+  const [jobs, dinner, upcomingDinners, shoppingItems, quiz, feedPost, tomorrowEvent, leaderboard, wrapUp, weather] = await Promise.all([
     db.job.findMany({
       where: { familyId: family.id, dueDate: { gte: startOfToday(), lte: endOfToday() } },
       include: { assignedTo: true },
@@ -34,6 +38,11 @@ export default async function HomePage() {
     db.dinnerPlan.findFirst({
       where: { familyId: family.id, date: { gte: startOfToday(), lte: endOfToday() } },
       include: { cook: true, dishes: true },
+    }),
+    db.dinnerPlan.findMany({
+      where: { familyId: family.id, date: { gt: endOfToday(), lte: weekAhead } },
+      include: { cook: true, dishes: true },
+      orderBy: { date: "asc" },
     }),
     db.shoppingItem.findMany({
       where: { familyId: family.id, status: "pending" },
@@ -58,7 +67,7 @@ export default async function HomePage() {
   const openJobs = jobs.filter((j) => j.status !== "done");
 
   const briefing = [
-    `Good morning. ${weather?.summary ?? "The weather update isn't available right now."}`,
+    `Good afternoon. ${weather?.summary ?? "The weather update isn't available right now."}`,
     dinner
       ? `${dinner.cook?.name ?? "Someone"} is cooking dinner${dinner.dishes ? `, ${dinner.dishes.name} is on dishes` : ""}.`
       : "No dinner planned yet.",
@@ -186,6 +195,30 @@ export default async function HomePage() {
               <p className="text-sm" style={{ color: "var(--muted)" }}>
                 No dinner planned yet.
               </p>
+            )}
+            {upcomingDinners.length > 0 && (
+              <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
+                <p className="text-[10px] uppercase font-semibold mb-1.5" style={{ color: "var(--muted)" }}>
+                  Coming up
+                </p>
+                <div className="flex flex-col gap-1">
+                  {upcomingDinners.map((d) => (
+                    <div key={d.id} className="flex items-center justify-between text-xs">
+                      <span className="font-semibold" style={{ color: "var(--muted)" }}>
+                        {d.date.toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" })}
+                      </span>
+                      <span className="font-semibold">
+                        {d.mealName}
+                        {d.cook ? ` — ${d.cook.name}` : ""}
+                        {d.dishes ? ` / ${d.dishes.name} dishes` : ""}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {viewer.role === "parent" && (
+              <DinnerPlanForm familyId={family.id} actingProfileId={viewer.id} profiles={family.profiles} />
             )}
           </section>
 
