@@ -2,6 +2,7 @@
 
 import { useState, useRef, useTransition, useEffect } from "react";
 import { sendMessage } from "@/app/chat/actions";
+import { speak, stopSpeaking } from "@/lib/speak";
 
 type Message = { role: "user" | "ai"; text: string };
 
@@ -12,6 +13,10 @@ const SUGGESTIONS = [
   "What do I have tomorrow?",
   "Who's winning this week?",
 ];
+
+// Whether Emma (the AI's voice) speaks her replies aloud — remembered per
+// device so it doesn't reset every visit.
+const VOICE_REPLY_KEY = "family-ai-emma-talks-back";
 
 function MicIcon() {
   return (
@@ -24,6 +29,23 @@ function MicIcon() {
   );
 }
 
+function SpeakerIcon({ muted }: { muted: boolean }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="4 9 9 9 13 5 13 19 9 15 4 15 4 9" />
+      {muted ? (
+        <line x1="17" y1="9" x2="23" y2="15" />
+      ) : (
+        <>
+          <path d="M17.5 8.5a5 5 0 0 1 0 7" />
+          <path d="M20 6a9 9 0 0 1 0 12" />
+        </>
+      )}
+      {muted && <line x1="23" y1="9" x2="17" y2="15" />}
+    </svg>
+  );
+}
+
 export function ChatWindow({ familyId, profileId, viewerName }: { familyId: string; profileId: string; viewerName: string }) {
   const [messages, setMessages] = useState<Message[]>([
     { role: "ai", text: `Hi ${viewerName} — ask me anything about dinner, jobs, the shopping list, or what's coming up.` },
@@ -32,6 +54,7 @@ export function ChatWindow({ familyId, profileId, viewerName }: { familyId: stri
   const [pending, startTransition] = useTransition();
   const [listening, setListening] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(false);
+  const [voiceReplyOn, setVoiceReplyOn] = useState(true);
   const listRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
@@ -42,7 +65,21 @@ export function ChatWindow({ familyId, profileId, viewerName }: { familyId: stri
     // button entirely rather than show one that'll just fail silently.
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     setVoiceSupported(!!SpeechRecognition);
+
+    const saved = localStorage.getItem(VOICE_REPLY_KEY);
+    if (saved !== null) setVoiceReplyOn(saved === "true");
+
+    return () => stopSpeaking();
   }, []);
+
+  function toggleVoiceReply() {
+    setVoiceReplyOn((prev) => {
+      const next = !prev;
+      localStorage.setItem(VOICE_REPLY_KEY, String(next));
+      if (!next) stopSpeaking();
+      return next;
+    });
+  }
 
   function submit(text: string) {
     const trimmed = text.trim();
@@ -55,6 +92,7 @@ export function ChatWindow({ familyId, profileId, viewerName }: { familyId: stri
       const reply = await sendMessage(history, familyId, profileId);
       setMessages((m) => [...m, { role: "ai", text: reply }]);
       requestAnimationFrame(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }));
+      if (voiceReplyOn) speak(reply);
     });
   }
 
@@ -83,6 +121,23 @@ export function ChatWindow({ familyId, profileId, viewerName }: { familyId: stri
 
   return (
     <div className="card flex flex-col" style={{ height: "60vh" }}>
+      <div className="flex justify-end mb-2">
+        <button
+          type="button"
+          onClick={toggleVoiceReply}
+          className="chip"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            background: voiceReplyOn ? "var(--accent-soft)" : undefined,
+            color: voiceReplyOn ? "var(--accent)" : undefined,
+          }}
+        >
+          <SpeakerIcon muted={!voiceReplyOn} />
+          Emma talks back: {voiceReplyOn ? "On" : "Off"}
+        </button>
+      </div>
       <div ref={listRef} className="flex flex-col gap-2.5 flex-1 overflow-y-auto pb-2">
         {messages.map((m, i) => (
           <div key={i} className={`chat-bubble ${m.role === "user" ? "user" : "ai"}`}>

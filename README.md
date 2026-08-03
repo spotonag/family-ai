@@ -19,7 +19,7 @@ the one running against the real stack end to end.
 | AI chat | **Real Claude, with a rule-based fallback.** If `ANTHROPIC_API_KEY` is set, chat runs through actual Claude with tool use — understands natural phrasing, asks clarifying questions, handles multi-part requests. With no key, it automatically falls back to matching the exact example phrases from the Functional Spec's intent map (Section 6) with regex. See "AI chat" below. |
 | Weather | **Real** — live Bureau of Meteorology data for Boort, VIC. See "Weather data" below for important caveats. |
 | Auth / roles | **Lightweight PIN gate, real enforcement.** Switching "viewing as" into a Parent profile needs that parent's 4-digit PIN (children switch freely, per spec Section 5.1). Admin-only actions (adding a job, giving bonus points) are checked server-side, not just hidden in the UI. See "Auth / roles" below for what this is and isn't. |
-| Voice (output) | **Real, with a fallback.** If `ELEVENLABS_API_KEY` is set, Today's Briefing / Weekly Wrap-Up "Play" buttons speak with a real ElevenLabs voice; with no key, or if the ElevenLabs request fails, it falls back to the browser's built-in speech synthesis automatically. See "Voice" below. |
+| Voice (output) | **Real, with a fallback.** If `ELEVENLABS_API_KEY` is set, Today's Briefing / Weekly Wrap-Up "Play" buttons — and the AI chat's replies, spoken by "Emma," toggleable per device — speak with a real ElevenLabs voice; with no key, or if the ElevenLabs request fails, it falls back to the browser's built-in speech synthesis automatically. See "Voice" below. |
 | Voice (input, "talk to the app") | **Real** — a microphone button on the AI Assistant chat uses the browser's built-in speech recognition to fill in and send your message by voice. See "Voice" below. |
 | Push notifications | Not built yet. |
 
@@ -132,14 +132,23 @@ box with zero setup.
 Add your ElevenLabs API key to `.env` (copy `.env.example`, uncomment
 `ELEVENLABS_API_KEY`, paste a key from https://elevenlabs.io/app/settings/api-keys)
 and restart the dev server. The "Play" button on Today's Briefing and the
-Weekly Wrap-Up (`src/components/AudioButton.tsx`) then calls
-`src/app/api/tts/route.ts`, a server route that proxies the text to
+Weekly Wrap-Up (`src/components/AudioButton.tsx`), and the AI chat's own
+spoken replies (`src/components/ChatWindow.tsx`), both call the shared
+`speak()` helper in `src/lib/speak.ts`, which hits
+`src/app/api/tts/route.ts` — a server route that proxies the text to
 ElevenLabs' `text-to-speech` endpoint and streams the returned MP3 straight
 back to the browser — the API key never reaches client-side code. With no
-key set, or if that request fails for any reason, the button transparently
+key set, or if that request fails for any reason, `speak()` transparently
 falls back to the browser's own `speechSynthesis` voice
 (`src/lib/voice.ts`, prefers an `en-AU` natural/neural voice) — either way
-the button works, just with a different voice.
+it works, just with a different voice.
+
+**The AI chat talks back too.** The assistant is voiced as "Emma" — a
+speaker chip at the top of the chat window ("Emma talks back: On/Off")
+lets each family member turn her spoken replies on or off, remembered per
+device (`localStorage`, not shared across the family). It defaults to on.
+Combined with the mic button below, this makes the whole chat usable
+hands-free — say something, Emma answers out loud.
 
 Voice defaults to "Hannah" (`M7ya1YbaeFaPXljg9BpK`); override with
 `ELEVENLABS_VOICE_ID` in `.env` — find other voice IDs at

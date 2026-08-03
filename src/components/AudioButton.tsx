@@ -1,9 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { getPreferredVoice } from "@/lib/voice";
-
-const canSpeak = typeof window !== "undefined" && "speechSynthesis" in window;
+import { useEffect, useState } from "react";
+import { speak, stopSpeaking } from "@/lib/speak";
 
 export function AudioButton({
   idleLabel,
@@ -17,70 +15,17 @@ export function AudioButton({
   gold?: boolean;
 }) {
   const [state, setState] = useState<"idle" | "playing" | "played">("idle");
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Stop talking if the user navigates away mid-sentence.
   useEffect(() => {
-    return () => {
-      if (canSpeak) window.speechSynthesis.cancel();
-      audioRef.current?.pause();
-    };
+    return () => stopSpeaking();
   }, []);
-
-  function speakWithBrowserVoice() {
-    if (!canSpeak) {
-      // No speech synthesis available at all — just reveal the transcript.
-      setTimeout(() => setState("played"), 1200);
-      return;
-    }
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(transcript);
-    getPreferredVoice().then((voice) => {
-      if (voice) {
-        utterance.voice = voice;
-        utterance.lang = voice.lang;
-      }
-    });
-    utterance.rate = 0.96;
-    utterance.pitch = 1;
-    utterance.onend = () => setState("played");
-    utterance.onerror = () => setState("played");
-    window.speechSynthesis.speak(utterance);
-  }
 
   async function press() {
     if (state === "playing") return;
     setState("playing");
-
-    // Try real (ElevenLabs) audio first — falls back to the browser's own
-    // voice if it's not configured (no API key) or the request fails.
-    try {
-      const res = await fetch("/api/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: transcript }),
-      });
-      if (res.ok) {
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const audio = new Audio(url);
-        audioRef.current = audio;
-        audio.onended = () => {
-          setState("played");
-          URL.revokeObjectURL(url);
-        };
-        audio.onerror = () => {
-          setState("played");
-          URL.revokeObjectURL(url);
-        };
-        await audio.play();
-        return;
-      }
-    } catch {
-      // network error etc — fall through to browser voice below
-    }
-
-    speakWithBrowserVoice();
+    await speak(transcript);
+    setState("played");
   }
 
   const label = state === "idle" ? idleLabel : state === "playing" ? "Playing…" : replayLabel;
