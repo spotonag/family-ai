@@ -19,7 +19,8 @@ the one running against the real stack end to end.
 | AI chat | **Real Claude, with a rule-based fallback.** If `ANTHROPIC_API_KEY` is set, chat runs through actual Claude with tool use — understands natural phrasing, asks clarifying questions, handles multi-part requests. With no key, it automatically falls back to matching the exact example phrases from the Functional Spec's intent map (Section 6) with regex. See "AI chat" below. |
 | Weather | **Real** — live Bureau of Meteorology data for Boort, VIC. See "Weather data" below for important caveats. |
 | Auth / roles | **Lightweight PIN gate, real enforcement.** Switching "viewing as" into a Parent profile needs that parent's 4-digit PIN (children switch freely, per spec Section 5.1). Admin-only actions (adding a job, giving bonus points) are checked server-side, not just hidden in the UI. See "Auth / roles" below for what this is and isn't. |
-| Voice | Not built yet — this milestone is text/click only. |
+| Voice (output) | **Real, with a fallback.** If `ELEVENLABS_API_KEY` is set, Today's Briefing / Weekly Wrap-Up "Play" buttons speak with a real ElevenLabs voice; with no key, or if the ElevenLabs request fails, it falls back to the browser's built-in speech synthesis automatically. See "Voice" below. |
+| Voice (input, "talk to the app") | Not built yet — chat is text-entry only for now. |
 | Push notifications | Not built yet. |
 
 ## Getting started
@@ -125,6 +126,44 @@ function with no framework code in it, matching the exact example phrases
 from the Functional Spec's intent map (Section 6). The app is fully usable
 either way; the fallback exists so a clone of this repo works out of the
 box with zero setup.
+
+## Voice
+
+Add your ElevenLabs API key to `.env` (copy `.env.example`, uncomment
+`ELEVENLABS_API_KEY`, paste a key from https://elevenlabs.io/app/settings/api-keys)
+and restart the dev server. The "Play" button on Today's Briefing and the
+Weekly Wrap-Up (`src/components/AudioButton.tsx`) then calls
+`src/app/api/tts/route.ts`, a server route that proxies the text to
+ElevenLabs' `text-to-speech` endpoint and streams the returned MP3 straight
+back to the browser — the API key never reaches client-side code. With no
+key set, or if that request fails for any reason, the button transparently
+falls back to the browser's own `speechSynthesis` voice
+(`src/lib/voice.ts`, prefers an `en-AU` natural/neural voice) — either way
+the button works, just with a different voice.
+
+Voice defaults to "Hannah" (`M7ya1YbaeFaPXljg9BpK`); override with
+`ELEVENLABS_VOICE_ID` in `.env` — find other voice IDs at
+https://elevenlabs.io/app/voice-library. Remember to also set both
+`ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` in Render's Environment tab
+for the live site (see `render.yaml`) — they aren't picked up from this repo.
+
+**Free-tier accounts can get flagged and locked out.** ElevenLabs' abuse
+detection sometimes disables an account's Free Tier entirely — including
+for genuine use — if requests come from something it flags as a proxy or
+VPN, returning `401 detected_unusual_activity` on every request until
+resolved. If Play silently falls back to the browser voice (or you see that
+error in server logs) even with a correct key and voice ID, check
+https://elevenlabs.io/app/subscription — a paid plan (Starter is a few
+dollars a month, ballpark — check current pricing at
+https://elevenlabs.io/pricing) removes this restriction and also raises the
+monthly character quota well past the Free Tier's ~10k characters.
+
+Voice **input** ("talk to the app" instead of typing) isn't built —
+the free option is the browser's own `SpeechRecognition`/
+`webkitSpeechRecognition` API (no extra service, no extra cost, works
+offline-ish in Chrome/Edge); ElevenLabs also offers a paid speech-to-text
+API if higher accuracy across accents/background noise turns out to matter
+more than the free browser one delivers.
 
 ## Auth / roles
 
@@ -250,6 +289,7 @@ is:
 - Auth is a PIN gate, not real accounts — see "Auth / roles" above.
 - Weather uses an unofficial API — see "Weather data" above.
 - Chat needs an API key to use real Claude — without one it's rule-based (see "AI chat" above).
+- Voice is output-only (Play button) — no "talk to the app" input yet, and ElevenLabs needs an API key/paid plan or it falls back to the browser voice (see "Voice" above).
 - No push notifications.
 - `/settings` covers adding a family member (Section 5.8) but not editing
   or removing one, and there's no way to change a PIN after creation short

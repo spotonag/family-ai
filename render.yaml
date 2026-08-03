@@ -24,3 +24,9 @@ services:
 
       - key: ANTHROPIC_MODEL
         value: claude-sonnet-5
+
+      - key: ELEVENLABS_API_KEY
+        sync: false
+
+      - key: ELEVENLABS_VOICE_ID
+        value: M7ya1YbaeFaPXljg9BpK
