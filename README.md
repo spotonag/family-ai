@@ -194,9 +194,10 @@ device (`localStorage`, not shared across the family). It defaults to on.
 
 **Reads numbers and units the way a person would say them, not the way
 they're written.** `speak()` normalizes text before sending it to either
-voice — expanding "km/h" to "kilometres per hour" and "°C" to "degrees" —
-without touching the on-screen transcript, which keeps those abbreviations
-since they're perfectly normal to read with your eyes. Dates get the same
+voice — expanding "km/h" to "kilometres per hour", "°C" to "degrees", and
+an on-the-hour time like "8:00 pm" to "8 o'clock pm" — without touching the
+on-screen transcript, which keeps those abbreviations since they're
+perfectly normal to read with your eyes. Dates get the same
 treatment further upstream: `spokenDateLabel()` in `src/lib/timezone.ts`
 builds "Monday, the 4th of August" instead of a bare "Monday 4 August",
 since a TTS engine reads a lone day number as the cardinal "four" rather

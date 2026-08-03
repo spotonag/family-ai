@@ -24,6 +24,11 @@ function normalizeForSpeech(text: string): string {
   return text
     .replace(/°C/gi, " degrees")
     .replace(/\bkm\/h\b/gi, "kilometres per hour")
+    // "8:00 pm" reads as "eight zero zero pm" — on-the-hour times need
+    // spelling out as "o'clock" the way a person would actually say them.
+    // Times with real minutes ("8:30 pm") are left alone; those already
+    // read fine as-is.
+    .replace(/\b(\d{1,2}):00\s*(am|pm)?\b/gi, (_match, hour, meridiem) => `${hour} o'clock${meridiem ? ` ${meridiem}` : ""}`)
     .replace(/\s{2,}/g, " ")
     .trim();
 }
