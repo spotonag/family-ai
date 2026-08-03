@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useTransition } from "react";
+import { useState, useRef, useTransition, useEffect } from "react";
 import { sendMessage } from "@/app/chat/actions";
 
 type Message = { role: "user" | "ai"; text: string };
@@ -13,13 +13,36 @@ const SUGGESTIONS = [
   "Who's winning this week?",
 ];
 
+function MicIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+      <line x1="12" y1="19" x2="12" y2="23" />
+      <line x1="8" y1="23" x2="16" y2="23" />
+    </svg>
+  );
+}
+
 export function ChatWindow({ familyId, profileId, viewerName }: { familyId: string; profileId: string; viewerName: string }) {
   const [messages, setMessages] = useState<Message[]>([
     { role: "ai", text: `Hi ${viewerName} — ask me anything about dinner, jobs, the shopping list, or what's coming up.` },
   ]);
   const [input, setInput] = useState("");
   const [pending, startTransition] = useTransition();
+  const [listening, setListening] = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    // Needs a secure context (https, or localhost) and browser support
+    // (Chrome/Edge/Safari; not Firefox as of writing) — hide the mic
+    // button entirely rather than show one that'll just fail silently.
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    setVoiceSupported(!!SpeechRecognition);
+  }, []);
 
   function submit(text: string) {
     const trimmed = text.trim();
@@ -33,6 +56,29 @@ export function ChatWindow({ familyId, profileId, viewerName }: { familyId: stri
       setMessages((m) => [...m, { role: "ai", text: reply }]);
       requestAnimationFrame(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }));
     });
+  }
+
+  function toggleListening() {
+    if (listening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-AU";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.onstart = () => setListening(true);
+    recognition.onend = () => setListening(false);
+    recognition.onerror = () => setListening(false);
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0]?.[0]?.transcript;
+      if (transcript) submit(transcript);
+    };
+    recognitionRef.current = recognition;
+    recognition.start();
   }
 
   return (
@@ -64,7 +110,7 @@ export function ChatWindow({ familyId, profileId, viewerName }: { familyId: stri
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask the family AI…"
+          placeholder={listening ? "Listening…" : "Ask the family AI…"}
           className="flex-1 text-sm"
           style={{
             border: "1px solid var(--border)",
@@ -74,6 +120,23 @@ export function ChatWindow({ familyId, profileId, viewerName }: { familyId: stri
             color: "var(--ink)",
           }}
         />
+        {voiceSupported && (
+          <button
+            type="button"
+            onClick={toggleListening}
+            aria-label={listening ? "Stop listening" : "Speak your message"}
+            style={{
+              background: listening ? "#d64545" : "var(--surface-2)",
+              color: listening ? "#fff" : "var(--ink)",
+              border: "1px solid var(--border)",
+              borderRadius: 14,
+              padding: "10px 12px",
+              lineHeight: 0,
+            }}
+          >
+            <MicIcon />
+          </button>
+        )}
         <button
           type="submit"
           disabled={pending}

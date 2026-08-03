@@ -20,7 +20,7 @@ the one running against the real stack end to end.
 | Weather | **Real** — live Bureau of Meteorology data for Boort, VIC. See "Weather data" below for important caveats. |
 | Auth / roles | **Lightweight PIN gate, real enforcement.** Switching "viewing as" into a Parent profile needs that parent's 4-digit PIN (children switch freely, per spec Section 5.1). Admin-only actions (adding a job, giving bonus points) are checked server-side, not just hidden in the UI. See "Auth / roles" below for what this is and isn't. |
 | Voice (output) | **Real, with a fallback.** If `ELEVENLABS_API_KEY` is set, Today's Briefing / Weekly Wrap-Up "Play" buttons speak with a real ElevenLabs voice; with no key, or if the ElevenLabs request fails, it falls back to the browser's built-in speech synthesis automatically. See "Voice" below. |
-| Voice (input, "talk to the app") | Not built yet — chat is text-entry only for now. |
+| Voice (input, "talk to the app") | **Real** — a microphone button on the AI Assistant chat uses the browser's built-in speech recognition to fill in and send your message by voice. See "Voice" below. |
 | Push notifications | Not built yet. |
 
 ## Getting started
@@ -158,12 +158,18 @@ dollars a month, ballpark — check current pricing at
 https://elevenlabs.io/pricing) removes this restriction and also raises the
 monthly character quota well past the Free Tier's ~10k characters.
 
-Voice **input** ("talk to the app" instead of typing) isn't built —
-the free option is the browser's own `SpeechRecognition`/
-`webkitSpeechRecognition` API (no extra service, no extra cost, works
-offline-ish in Chrome/Edge); ElevenLabs also offers a paid speech-to-text
-API if higher accuracy across accents/background noise turns out to matter
-more than the free browser one delivers.
+**Voice input** ("talk to the app" instead of typing) uses the browser's
+built-in `SpeechRecognition`/`webkitSpeechRecognition` API — no extra
+service, no extra cost, no API key. The microphone button next to the chat
+input (`src/components/ChatWindow.tsx`) only renders if the browser
+actually supports it (Chrome, Edge, Safari — not Firefox as of writing);
+tapping it starts listening, and the recognized phrase is sent as your
+chat message automatically once you stop talking. It needs a secure
+context (`https://`, or `localhost` for local dev) and will prompt for
+microphone permission the first time, same as any site using the
+microphone. If accuracy across accents/background noise ever matters more
+than this free option delivers, ElevenLabs also offers a paid
+speech-to-text API as a drop-in upgrade path.
 
 ## Auth / roles
 
@@ -289,7 +295,7 @@ is:
 - Auth is a PIN gate, not real accounts — see "Auth / roles" above.
 - Weather uses an unofficial API — see "Weather data" above.
 - Chat needs an API key to use real Claude — without one it's rule-based (see "AI chat" above).
-- Voice is output-only (Play button) — no "talk to the app" input yet, and ElevenLabs needs an API key/paid plan or it falls back to the browser voice (see "Voice" above).
+- ElevenLabs (voice output) needs an API key and, in practice, a paid plan — their Free Tier blocks server-side/proxied requests — otherwise it falls back to the browser voice (see "Voice" above).
 - No push notifications.
 - `/settings` covers adding a family member (Section 5.8) but not editing
   or removing one, and there's no way to change a PIN after creation short
