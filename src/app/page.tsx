@@ -65,9 +65,10 @@ export default async function HomePage() {
 
   const doneCount = jobs.filter((j) => j.status === "done").length;
   const openJobs = jobs.filter((j) => j.status !== "done");
+  const todayLabel = new Date().toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long" });
 
   const briefing = [
-    `Good afternoon. ${weather?.summary ?? "The weather update isn't available right now."}`,
+    `Good afternoon, ${todayLabel}. ${weather?.summary ?? "The weather update isn't available right now."}`,
     dinner
       ? `${dinner.cook?.name ?? "Someone"} is cooking dinner${dinner.dishes ? `, ${dinner.dishes.name} is on dishes` : ""}.`
       : "No dinner planned yet.",
@@ -106,9 +107,7 @@ export default async function HomePage() {
         <header className="flex items-center justify-between mb-5">
           <div>
             <h1 className="text-xl font-bold tracking-tight">Good afternoon, {viewer.name}</h1>
-            <p className="text-xs font-semibold" style={{ color: "var(--muted)" }}>
-              {new Date().toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long" })}
-            </p>
+            <p className="text-xs font-semibold" style={{ color: "var(--muted)" }}>{todayLabel}</p>
           </div>
           <div className="flex items-start gap-3">
             {viewer.role === "parent" && (
